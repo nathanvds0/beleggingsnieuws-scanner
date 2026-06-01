@@ -1,11 +1,9 @@
-# BelegRadar v4
+# BelegRadar v4.1
 
-Mooier Streamlit-dashboard met:
-- jouw standaard watchlist
-- automatische refresh
-- top 3 kaarten
-- tabs
-- gekleurde actie-badges
-- nieuws + koers/volume analyse
+Verbeterde layout:
+- Top-kandidaten zijn nu compacter
+- Tekst is leesbaar in dark mode
+- Betere kaarten en badges
+- Jouw standaard watchlist blijft behouden
 
 Geen financieel advies.

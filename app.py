@@ -5,60 +5,68 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="BelegRadar v4", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v4.1", page_icon="📈", layout="wide")
 
 st.markdown("""
 <style>
-.block-container {
-    padding-top: 1.5rem;
-}
+.block-container { padding-top: 1.4rem; max-width: 1250px; }
+
 .hero {
-    background: linear-gradient(135deg, #111827, #1f2937);
+    background: linear-gradient(135deg, #111827, #273449);
     color: white;
-    padding: 32px;
-    border-radius: 22px;
-    margin-bottom: 22px;
+    padding: 26px 30px;
+    border-radius: 20px;
+    margin-bottom: 20px;
 }
-.hero h1 {
-    font-size: 46px;
-    margin-bottom: 6px;
+.hero h1 { font-size: 42px; margin-bottom: 4px; color: white; }
+.hero p { font-size: 16px; color: #d1d5db; margin-bottom: 4px; }
+
+.candidate-card {
+    background: #111827;
+    color: #f9fafb;
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 1px solid #374151;
+    margin-bottom: 12px;
 }
-.hero p {
-    font-size: 17px;
+.candidate-card h3 {
+    color: #ffffff;
+    font-size: 20px;
+    margin: 0 0 8px 0;
+}
+.candidate-card p {
     color: #d1d5db;
-    margin-bottom: 4px;
-}
-.card {
-    background: #ffffff;
-    padding: 18px 20px;
-    border-radius: 18px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-    margin-bottom: 14px;
-}
-.small-muted {
-    color: #6b7280;
+    margin: 6px 0;
     font-size: 14px;
 }
+.candidate-card strong { color: #ffffff; }
+
+.compact-card {
+    background: #111827;
+    color: #f9fafb;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid #374151;
+    margin-bottom: 10px;
+}
+.compact-card p { color: #d1d5db; margin: 4px 0; }
+
 .badge {
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 999px;
     font-weight: 800;
     display: inline-block;
-    font-size: 13px;
+    font-size: 12px;
+    margin: 4px 0 6px 0;
 }
 .badge-green { background-color: #dcfce7; color: #166534; }
 .badge-yellow { background-color: #fef9c3; color: #854d0e; }
 .badge-orange { background-color: #ffedd5; color: #9a3412; }
 .badge-red { background-color: #fee2e2; color: #991b1b; }
 .badge-blue { background-color: #dbeafe; color: #1e40af; }
-.badge-gray { background-color: #f3f4f6; color: #374151; }
-.metric-box {
-    background: white;
-    padding: 18px;
-    border-radius: 16px;
-    border: 1px solid #e5e7eb;
-}
+.badge-gray { background-color: #e5e7eb; color: #374151; }
+
+.small-muted { color: #9ca3af; font-size: 13px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -159,7 +167,6 @@ def safe_float(value):
 def score_price_volume(data):
     if data is None or len(data) < 50:
         return {"price_score":0,"volume_score":0,"trend":"Onvoldoende data","last_close":None,"pct_7d":None,"pct_30d":None,"volume_ratio":None,"sma20":None,"sma50":None}
-
     close = data["Close"]
     volume = data["Volume"]
     last_close = safe_float(close.iloc[-1])
@@ -169,24 +176,20 @@ def score_price_volume(data):
     sma50 = safe_float(close.rolling(50).mean().iloc[-1])
     avg_vol20 = safe_float(volume.rolling(20).mean().iloc[-1])
     last_vol = safe_float(volume.iloc[-1])
-
     pct_7d = ((last_close / close_7d_ago) - 1) * 100 if last_close and close_7d_ago else None
     pct_30d = ((last_close / close_30d_ago) - 1) * 100 if last_close and close_30d_ago else None
     volume_ratio = last_vol / avg_vol20 if last_vol and avg_vol20 else None
-
     price_score = 0
     if last_close and sma20 and last_close > sma20:
         price_score += 1
     if last_close and sma50 and last_close > sma50:
         price_score += 1
-
     volume_score = 0
     if volume_ratio is not None:
         if volume_ratio > 1.5:
             volume_score = 2
         elif volume_ratio > 1.1:
             volume_score = 1
-
     if last_close and sma20 and sma50:
         if last_close > sma20 and last_close > sma50:
             trend = "Sterk: boven 20- en 50-daags gemiddelde"
@@ -198,7 +201,6 @@ def score_price_volume(data):
             trend = "Zwak: onder 20- en 50-daags gemiddelde"
     else:
         trend = "Onbekend"
-
     return {"price_score":price_score,"volume_score":volume_score,"trend":trend,"last_close":last_close,"pct_7d":pct_7d,"pct_30d":pct_30d,"volume_ratio":volume_ratio,"sma20":sma20,"sma50":sma50}
 
 def score_news(news_items, custom_keywords):
@@ -235,12 +237,10 @@ def automatic_decision(total, catalyst_score, price_score, volume_score, rr_scor
         warnings.append("Koers is al hard gestegen; kans op pullback is groter.")
     if rr_score == 0:
         warnings.append("Risk/reward is zwak door overextensie of onvoldoende data.")
-
     reasons.append("Sterke katalysator-score." if catalyst_score >= 2 else "Mogelijke katalysator, maar niet supersterk." if catalyst_score == 1 else "Geen duidelijke katalysator gevonden.")
     reasons.append("Koerstrend is positief." if price_score >= 2 else "Koerstrend is redelijk." if price_score == 1 else "Koerstrend is zwak of onduidelijk.")
     reasons.append("Volume bevestigt sterk." if volume_score >= 2 else "Volume bevestigt licht." if volume_score == 1 else "Volume bevestigt niet.")
     warning_text = " ".join(warnings) if warnings else "Geen grote waarschuwingen gevonden."
-
     if total >= 8 and catalyst_score >= 1 and price_score >= 1 and volume_score >= 1 and rr_score >= 1 and not negative_hits:
         return "KOOP-KANDIDAAT", "Koop-kandidaat voor verder onderzoek. Alleen kopen met instap, stop-loss en maximale positie.", " ".join(reasons), warning_text
     if total >= 8 and volume_score == 0:
@@ -322,33 +322,37 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_1.csv", "text/csv")
 
 with tab2:
     st.subheader("Top 3 volgens BelegRadar")
     top3 = df.head(3)
-    for i, row in top3.iterrows():
-        st.markdown(f"""
-        <div class="card">
-            <h3>{row['Ticker']} — {row['Naam']}</h3>
-            {action_badge(row['Actie'])}
-            <p><strong>Score:</strong> {row['Totaalscore']}/10</p>
-            <p>{row['Beoordeling']}</p>
-            <p class="small-muted"><strong>Waarschuwing:</strong> {row['Waarschuwingen']}</p>
-        </div>
-        """, unsafe_allow_html=True)
+    cols = st.columns(3)
+    for idx, (_, row) in enumerate(top3.iterrows()):
+        with cols[idx % 3]:
+            st.markdown(f"""
+            <div class="candidate-card">
+                <h3>{row['Ticker']}</h3>
+                <p><strong>{row['Naam']}</strong></p>
+                {action_badge(row['Actie'])}
+                <p><strong>Score:</strong> {row['Totaalscore']}/10</p>
+                <p><strong>7d:</strong> {row['7d %']}% &nbsp; <strong>30d:</strong> {row['30d %']}%</p>
+                <p><strong>Volume:</strong> {row['Volume ratio']}x</p>
+                <p class="small-muted">{row['Beoordeling']}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-    st.subheader("Alle sterke kandidaten")
+    st.subheader("Sterke kandidaten")
     top = df[df["Actie"].isin(["KOOP-KANDIDAAT", "SERIEUS ANALYSEREN", "WACHT OP VOLUME"])]
     if top.empty:
         st.info("Geen sterke kandidaten gevonden volgens deze scan.")
     else:
         for _, row in top.iterrows():
             st.markdown(f"""
-            <div class="card">
+            <div class="compact-card">
                 <strong>{row['Ticker']} — {row['Naam']}</strong><br>
                 {action_badge(row['Actie'])}
-                <p><strong>Score:</strong> {row['Totaalscore']}/10</p>
+                <p><strong>Score:</strong> {row['Totaalscore']}/10 | <strong>Volume:</strong> {row['Volume ratio']}x</p>
                 <p>{row['Beoordeling']}</p>
             </div>
             """, unsafe_allow_html=True)
@@ -363,13 +367,11 @@ with tab3:
             c2.metric("7 dagen", "n.v.t." if item["7d %"] is None else f"{item['7d %']}%")
             c3.metric("30 dagen", "n.v.t." if item["30d %"] is None else f"{item['30d %']}%")
             c4.metric("Volume ratio", "n.v.t." if item["Volume ratio"] is None else f"{item['Volume ratio']}x")
-
             st.write("### Automatische beoordeling")
             st.write(f"**Beoordeling:** {item['Beoordeling']}")
             st.write(f"**Waarom:** {item['Redenen']}")
             st.write(f"**Waarschuwingen:** {item['Waarschuwingen']}")
             st.write(f"**Positie-regel:** {item['Positie-regel']}")
-
             st.write("### Data")
             st.write("**Sector:**", item["Sector"])
             st.write("**Trend:**", item["Trend"])
@@ -379,7 +381,6 @@ with tab3:
             st.write("**Catalyst hits:**", item["Catalyst hits"] or "Geen")
             st.write("**Keyword hits:**", item["Keyword hits"] or "Geen")
             st.write("**Negatieve signalen:**", item["Negatief nieuws"] or "Geen")
-
             st.write("### Recent nieuws")
             if item["Nieuws"]:
                 for n in item["Nieuws"]:
