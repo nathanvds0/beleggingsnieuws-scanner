@@ -5,8 +5,10 @@ import yfinance as yf
 import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
+import json
+import base64
 
-st.set_page_config(page_title="BelegRadar v5.3", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v5.4", page_icon="📈", layout="wide")
 
 THEMES = {
     "🌈 Neon donker": {
@@ -489,7 +491,41 @@ def bereken_kosten_per_asset(laatste_koers, orderbedrag, aankoopkost_vast, verko
     return {"aantal_stuks": aantal_stuks, "aankoopkosten_totaal": aankoopkosten_totaal, "verkoopkosten_totaal": verkoopkosten_totaal, "kosten_totaal": kosten_totaal, "kosten_pct_order": kosten_pct_order, "netto_aankoopprijs_per_stuk": netto_aankoopprijs_per_stuk, "break_even_prijs": break_even_prijs, "nodige_stijging_pct": nodige_stijging_pct}
 
 
+def encode_paper_state():
+    payload = {
+        "cash": float(st.session_state.get("paper_cash", 10000.0)),
+        "positions": st.session_state.get("paper_positions", []),
+    }
+    raw = json.dumps(payload, ensure_ascii=False)
+    return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("utf-8")
+
+def decode_paper_state(encoded):
+    raw = base64.urlsafe_b64decode(encoded.encode("utf-8")).decode("utf-8")
+    payload = json.loads(raw)
+    cash = float(payload.get("cash", 10000.0))
+    positions = payload.get("positions", [])
+    if not isinstance(positions, list):
+        positions = []
+    return cash, positions
+
+def persist_paper_to_url():
+    try:
+        st.query_params["paper"] = encode_paper_state()
+    except Exception:
+        pass
+
 def init_paper_portfolio():
+    if "paper_loaded_from_url" not in st.session_state:
+        st.session_state.paper_loaded_from_url = True
+        try:
+            if "paper" in st.query_params:
+                cash, positions = decode_paper_state(st.query_params["paper"])
+                st.session_state.paper_cash = cash
+                st.session_state.paper_positions = positions
+                return
+        except Exception:
+            pass
+
     if "paper_cash" not in st.session_state:
         st.session_state.paper_cash = 10000.0
     if "paper_positions" not in st.session_state:
@@ -524,6 +560,7 @@ def paper_buy(ticker, name, amount, price):
         "invested": amount,
         "buy_time": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
     })
+    persist_paper_to_url()
     return True, f"Virtueel gekocht: {shares:.4f} stuks {ticker} voor €{amount:.2f}."
 
 def paper_sell(position_index, current_price):
@@ -537,6 +574,7 @@ def paper_sell(position_index, current_price):
     st.session_state.paper_cash += value
     sold = st.session_state.paper_positions.pop(position_index)
     pnl = value - sold["invested"]
+    persist_paper_to_url()
     return True, f"Virtueel verkocht: {sold['ticker']} voor €{value:.2f}. Resultaat: €{pnl:.2f}."
 
 
@@ -705,7 +743,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", filtered.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v5_3.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", filtered.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v5_4.csv", "text/csv")
 
 with tab2:
     st.subheader("Mobiele kaartweergave")
@@ -857,6 +895,36 @@ with tab6:
 
     init_paper_portfolio()
 
+    st.info("Je oefenportfolio wordt nu ook in de URL opgeslagen. Bookmark of kopieer de link als je je voortgang wilt bewaren na refresh.")
+
+    with st.expander("💾 Oefenportfolio bewaren / laden", expanded=False):
+        save_payload = {
+            "cash": float(st.session_state.get("paper_cash", 10000.0)),
+            "positions": st.session_state.get("paper_positions", []),
+        }
+        st.download_button(
+            "Download savebestand",
+            json.dumps(save_payload, ensure_ascii=False, indent=2),
+            "oefenportfolio_save.json",
+            "application/json"
+        )
+
+        uploaded_save = st.file_uploader("Upload savebestand", type=["json"], key="paper_save_upload")
+        if uploaded_save is not None:
+            try:
+                loaded = json.load(uploaded_save)
+                st.session_state.paper_cash = float(loaded.get("cash", 10000.0))
+                positions = loaded.get("positions", [])
+                st.session_state.paper_positions = positions if isinstance(positions, list) else []
+                persist_paper_to_url()
+                st.success("Oefenportfolio geladen.")
+            except Exception as e:
+                st.error(f"Kon savebestand niet laden: {e}")
+
+        if st.button("🔗 Bewaar huidige portfolio in link"):
+            persist_paper_to_url()
+            st.success("Portfolio is in de URL opgeslagen. Kopieer of bookmark deze pagina.")
+
     c_start, c_reset = st.columns([2, 1])
     with c_start:
         start_cash = st.number_input("Startkapitaal / oefencash (€)", min_value=100.0, value=float(st.session_state.paper_cash if not st.session_state.paper_positions else st.session_state.paper_cash), step=100.0, help="Pas dit vooral aan als je nog geen posities hebt.")
@@ -864,10 +932,12 @@ with tab6:
         if st.button("Reset oefenportfolio"):
             st.session_state.paper_cash = 10000.0
             st.session_state.paper_positions = []
+            persist_paper_to_url()
             st.success("Oefenportfolio gereset naar €10.000 cash.")
 
     if not st.session_state.paper_positions and start_cash != st.session_state.paper_cash:
         st.session_state.paper_cash = start_cash
+        persist_paper_to_url()
 
     st.write("### Virtueel kopen")
     buy_cols = st.columns([2, 1, 1])
@@ -950,7 +1020,7 @@ with tab6:
 
         st.download_button("Download oefenportfolio", positions_df.to_csv(index=False), "oefenportfolio.csv", "text/csv")
 
-    st.caption("Let op: dit oefenportfolio wordt opgeslagen in je huidige Streamlit-sessie. Als de app reset of je cache wordt gewist, kan het verdwijnen. Download je portfolio als CSV als je het wilt bewaren.")
+    st.caption("Je oefenportfolio wordt opgeslagen in je sessie én in de URL. Voor extra zekerheid kun je ook een savebestand downloaden.")
 
 
 with tab7:

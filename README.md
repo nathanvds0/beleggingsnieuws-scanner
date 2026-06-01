@@ -1,12 +1,11 @@
-# BelegRadar v5.3
+# BelegRadar v5.4
 
-Fix/verbetering:
-- App voelt sneller aan bij klikken
-- Koersdata en nieuws worden 15 minuten gecachet
-- Auto-refresh staat standaard uit
-- Handmatige knop: Nu data verversen
-- Minder storende reloads tijdens gebruik
+Fix:
+- Oefenportfolio blijft beter bewaard na refresh
+- Posities en cash worden in de URL opgeslagen
+- Je kunt een savebestand downloaden en later uploaden
+- Virtueel kopen/verkopen blijft behouden
 
-Let op: Streamlit draait technisch nog steeds opnieuw bij interacties, maar door caching hoeft hij niet telkens alle data opnieuw op te halen.
+Tip: bookmark of kopieer de URL nadat je posities hebt toegevoegd.
 
 Geen financieel advies. Prijzen, kosten en scores zijn schattingen.
