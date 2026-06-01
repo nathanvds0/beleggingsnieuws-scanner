@@ -6,7 +6,7 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="BelegRadar v5.1", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v5.2", page_icon="📈", layout="wide")
 
 THEMES = {
     "🌈 Neon donker": {
@@ -16,36 +16,35 @@ THEMES = {
         "card_bg": "#111827", "card_border": "#7c3aed",
         "text": "#f9fafb", "muted": "#d1d5db", "input_bg": "#0b1220"
     },
-    "🔵 Blauw professioneel": {
+    "🔵 Blauw duidelijk": {
         "hero": "linear-gradient(135deg, #0f172a, #1d4ed8)",
         "accent": "#2563eb", "accent2": "#38bdf8",
-        "app_bg": "#eff6ff", "sidebar_bg": "#dbeafe", "panel_bg": "#ffffff",
-        "card_bg": "#ffffff", "card_border": "#93c5fd",
-        "text": "#0f172a", "muted": "#334155", "input_bg": "#ffffff"
+        "app_bg": "#f8fafc", "sidebar_bg": "#e0f2fe", "panel_bg": "#ffffff",
+        "card_bg": "#ffffff", "card_border": "#60a5fa",
+        "text": "#0f172a", "muted": "#1e3a8a", "input_bg": "#ffffff"
     },
-    "🟢 Groen finance": {
-        "hero": "linear-gradient(135deg, #052e16, #16a34a)",
-        "accent": "#22c55e", "accent2": "#84cc16",
-        "app_bg": "#ecfdf5", "sidebar_bg": "#dcfce7", "panel_bg": "#ffffff",
-        "card_bg": "#ffffff", "card_border": "#86efac",
-        "text": "#052e16", "muted": "#166534", "input_bg": "#ffffff"
+    "🟢 Groen duidelijk": {
+        "hero": "linear-gradient(135deg, #064e3b, #16a34a)",
+        "accent": "#16a34a", "accent2": "#65a30d",
+        "app_bg": "#f7fee7", "sidebar_bg": "#dcfce7", "panel_bg": "#ffffff",
+        "card_bg": "#ffffff", "card_border": "#4ade80",
+        "text": "#052e16", "muted": "#14532d", "input_bg": "#ffffff"
     },
-    "🟣 Paars premium": {
-        "hero": "linear-gradient(135deg, #1e1b4b, #7e22ce)",
-        "accent": "#a855f7", "accent2": "#ec4899",
+    "🟣 Paars duidelijk": {
+        "hero": "linear-gradient(135deg, #312e81, #7e22ce)",
+        "accent": "#7e22ce", "accent2": "#c026d3",
         "app_bg": "#faf5ff", "sidebar_bg": "#f3e8ff", "panel_bg": "#ffffff",
-        "card_bg": "#ffffff", "card_border": "#d8b4fe",
-        "text": "#1e1b4b", "muted": "#581c87", "input_bg": "#ffffff"
+        "card_bg": "#ffffff", "card_border": "#a855f7",
+        "text": "#1e1b4b", "muted": "#4c1d95", "input_bg": "#ffffff"
     },
-    "🔥 Oranje energie": {
-        "hero": "linear-gradient(135deg, #431407, #ea580c)",
-        "accent": "#f97316", "accent2": "#facc15",
+    "🔥 Oranje duidelijk": {
+        "hero": "linear-gradient(135deg, #7c2d12, #ea580c)",
+        "accent": "#ea580c", "accent2": "#f59e0b",
         "app_bg": "#fff7ed", "sidebar_bg": "#ffedd5", "panel_bg": "#ffffff",
-        "card_bg": "#ffffff", "card_border": "#fdba74",
-        "text": "#431407", "muted": "#9a3412", "input_bg": "#ffffff"
+        "card_bg": "#ffffff", "card_border": "#fb923c",
+        "text": "#431407", "muted": "#7c2d12", "input_bg": "#ffffff"
     },
 }
-
 selected_theme = st.sidebar.selectbox("🎨 Kleurthema", list(THEMES.keys()), index=0)
 theme = THEMES[selected_theme]
 
@@ -478,6 +477,58 @@ def bereken_kosten_per_asset(laatste_koers, orderbedrag, aankoopkost_vast, verko
     nodige_stijging_pct = ((break_even_prijs / laatste_koers) - 1) * 100
     return {"aantal_stuks": aantal_stuks, "aankoopkosten_totaal": aankoopkosten_totaal, "verkoopkosten_totaal": verkoopkosten_totaal, "kosten_totaal": kosten_totaal, "kosten_pct_order": kosten_pct_order, "netto_aankoopprijs_per_stuk": netto_aankoopprijs_per_stuk, "break_even_prijs": break_even_prijs, "nodige_stijging_pct": nodige_stijging_pct}
 
+
+def init_paper_portfolio():
+    if "paper_cash" not in st.session_state:
+        st.session_state.paper_cash = 10000.0
+    if "paper_positions" not in st.session_state:
+        st.session_state.paper_positions = []
+
+def get_latest_price_from_df(ticker, df):
+    try:
+        row = df[df["Ticker"].astype(str).str.upper() == str(ticker).upper()].iloc[0]
+        price = row["Prijs per stuk"]
+        if pd.notna(price):
+            return float(price)
+    except Exception:
+        pass
+    data = score_price_volume(get_price_data(ticker))
+    return data["last_close"]
+
+def paper_buy(ticker, name, amount, price):
+    init_paper_portfolio()
+    if amount <= 0:
+        return False, "Vul een bedrag groter dan 0 in."
+    if price is None or price <= 0:
+        return False, "Geen geldige koers gevonden voor deze ticker."
+    if amount > st.session_state.paper_cash:
+        return False, "Je hebt niet genoeg oefencash."
+    shares = amount / price
+    st.session_state.paper_cash -= amount
+    st.session_state.paper_positions.append({
+        "ticker": ticker,
+        "name": name,
+        "shares": shares,
+        "buy_price": price,
+        "invested": amount,
+        "buy_time": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
+    })
+    return True, f"Virtueel gekocht: {shares:.4f} stuks {ticker} voor €{amount:.2f}."
+
+def paper_sell(position_index, current_price):
+    init_paper_portfolio()
+    if position_index < 0 or position_index >= len(st.session_state.paper_positions):
+        return False, "Positie niet gevonden."
+    pos = st.session_state.paper_positions[position_index]
+    if current_price is None or current_price <= 0:
+        return False, "Geen geldige huidige koers."
+    value = pos["shares"] * current_price
+    st.session_state.paper_cash += value
+    sold = st.session_state.paper_positions.pop(position_index)
+    pnl = value - sold["invested"]
+    return True, f"Virtueel verkocht: {sold['ticker']} voor €{value:.2f}. Resultaat: €{pnl:.2f}."
+
+
 # Sidebar
 st.sidebar.header("Auto-refresh")
 auto_refresh = st.sidebar.toggle("Automatisch verversen", value=True)
@@ -627,7 +678,7 @@ col1.metric("Gescand", len(df))
 col2.metric("Beste zichtbare score", "n.v.t." if best is None else f"{best['Ticker']} — {best['Korte termijn score']}/10")
 col3.metric("Sterke signalen", int(df["Actie"].isin(["STERK RESEARCH-SIGNAAL", "SERIEUS ANALYSEREN", "WACHT OP VOLUME"]).sum()))
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["📊 Overzicht", "📱 Mobiele kaarten", "🔥 Top-signalen", "📰 Details & nieuws", "💼 Portfolio simulatie", "🚨 Alerts", "📱 Upload-hulp", "ℹ️ Uitleg"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(["📊 Overzicht", "📱 Mobiele kaarten", "🔥 Top-signalen", "📰 Details & nieuws", "💼 Portfolio simulatie", "🎮 Oefenportfolio", "🚨 Alerts", "📱 Upload-hulp", "ℹ️ Uitleg"])
 
 with tab1:
     st.subheader("Automatische beoordeling")
@@ -636,7 +687,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", filtered.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v5_1.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", filtered.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v5_2.csv", "text/csv")
 
 with tab2:
     st.subheader("Mobiele kaartweergave")
@@ -781,7 +832,110 @@ with tab5:
             "text/csv"
         )
 
+
 with tab6:
+    st.subheader("🎮 Oefenportfolio")
+    st.write("Oefen met kopen en verkopen zonder echt geld. De waarde beweegt mee met de actuele koersdata die de app ophaalt.")
+
+    init_paper_portfolio()
+
+    c_start, c_reset = st.columns([2, 1])
+    with c_start:
+        start_cash = st.number_input("Startkapitaal / oefencash (€)", min_value=100.0, value=float(st.session_state.paper_cash if not st.session_state.paper_positions else st.session_state.paper_cash), step=100.0, help="Pas dit vooral aan als je nog geen posities hebt.")
+    with c_reset:
+        if st.button("Reset oefenportfolio"):
+            st.session_state.paper_cash = 10000.0
+            st.session_state.paper_positions = []
+            st.success("Oefenportfolio gereset naar €10.000 cash.")
+
+    if not st.session_state.paper_positions and start_cash != st.session_state.paper_cash:
+        st.session_state.paper_cash = start_cash
+
+    st.write("### Virtueel kopen")
+    buy_cols = st.columns([2, 1, 1])
+    tickers_available = df["Ticker"].astype(str).tolist()
+    with buy_cols[0]:
+        buy_ticker = st.selectbox("Kies belegging", tickers_available)
+    selected_row = df[df["Ticker"].astype(str) == buy_ticker].iloc[0]
+    current_price = selected_row["Prijs per stuk"]
+    with buy_cols[1]:
+        st.metric("Huidige prijs", "n.v.t." if pd.isna(current_price) else f"€{float(current_price):.2f}")
+    with buy_cols[2]:
+        buy_amount = st.number_input("Bedrag kopen (€)", min_value=0.0, value=500.0, step=50.0)
+
+    if st.button("Virtueel kopen"):
+        ok, msg = paper_buy(buy_ticker, selected_row["Naam"], buy_amount, None if pd.isna(current_price) else float(current_price))
+        if ok:
+            st.success(msg)
+        else:
+            st.error(msg)
+
+    st.write("### Oefenportfolio resultaat")
+    position_rows = []
+    total_value = 0.0
+    total_invested = 0.0
+
+    for i, pos in enumerate(st.session_state.paper_positions):
+        price_now = get_latest_price_from_df(pos["ticker"], df)
+        if price_now is None:
+            value_now = None
+            pnl = None
+            pnl_pct = None
+        else:
+            value_now = pos["shares"] * price_now
+            pnl = value_now - pos["invested"]
+            pnl_pct = (pnl / pos["invested"] * 100) if pos["invested"] > 0 else 0
+            total_value += value_now
+        total_invested += pos["invested"]
+        position_rows.append({
+            "Nr": i,
+            "Ticker": pos["ticker"],
+            "Naam": pos["name"],
+            "Stuks": round(pos["shares"], 4),
+            "Koopprijs": round(pos["buy_price"], 2),
+            "Huidige prijs": None if price_now is None else round(price_now, 2),
+            "Ingelegd": round(pos["invested"], 2),
+            "Waarde nu": None if value_now is None else round(value_now, 2),
+            "Winst/verlies €": None if pnl is None else round(pnl, 2),
+            "Winst/verlies %": None if pnl_pct is None else round(pnl_pct, 2),
+            "Gekocht op": pos["buy_time"],
+        })
+
+    total_account = st.session_state.paper_cash + total_value
+    total_pnl = total_account - (st.session_state.paper_cash + total_invested)  # current value - invested for open positions
+    open_pnl = total_value - total_invested
+    open_pnl_pct = (open_pnl / total_invested * 100) if total_invested > 0 else 0
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Cash", f"€{st.session_state.paper_cash:,.2f}")
+    m2.metric("Waarde posities", f"€{total_value:,.2f}")
+    m3.metric("Totale waarde", f"€{total_account:,.2f}")
+    m4.metric("Open winst/verlies", f"€{open_pnl:,.2f}", f"{open_pnl_pct:.2f}%")
+
+    if not position_rows:
+        st.info("Je hebt nog geen virtuele posities. Kies hierboven een belegging en klik op 'Virtueel kopen'.")
+    else:
+        positions_df = pd.DataFrame(position_rows)
+        st.dataframe(positions_df, use_container_width=True, hide_index=True)
+
+        st.write("### Virtueel verkopen")
+        sell_options = [f"{row['Nr']} — {row['Ticker']} — {row['Stuks']} stuks" for row in position_rows]
+        sell_choice = st.selectbox("Kies positie om te verkopen", sell_options)
+        sell_index = int(sell_choice.split(" — ")[0])
+        sell_current_price = get_latest_price_from_df(st.session_state.paper_positions[sell_index]["ticker"], df)
+        if st.button("Virtueel verkopen"):
+            ok, msg = paper_sell(sell_index, sell_current_price)
+            if ok:
+                st.success(msg)
+            else:
+                st.error(msg)
+
+        st.download_button("Download oefenportfolio", positions_df.to_csv(index=False), "oefenportfolio.csv", "text/csv")
+
+    st.caption("Let op: dit oefenportfolio wordt opgeslagen in je huidige Streamlit-sessie. Als de app reset of je cache wordt gewist, kan het verdwijnen. Download je portfolio als CSV als je het wilt bewaren.")
+
+
+with tab7:
     st.subheader("🚨 Alerts")
     alert_score = st.slider("Alert vanaf korte termijn score", 0, 10, 8)
     alert_volume = st.slider("Alert vanaf volume ratio", 0.0, 3.0, 1.5, 0.1)
@@ -799,7 +953,7 @@ with tab6:
         st.dataframe(volume_alerts[["Ticker","Naam","Actie","Korte termijn score","Volume ratio","7d %"]], use_container_width=True, hide_index=True)
     st.caption("Dit zijn alleen alerts op de pagina. E-mail/Telegram alerts zouden een latere uitbreiding zijn.")
 
-with tab7:
+with tab8:
     st.subheader("📱 Watchlist maken of uploaden")
     st.markdown("""
     Je hebt twee opties:
@@ -820,7 +974,7 @@ with tab7:
     st.dataframe(voorbeeld, use_container_width=True, hide_index=True)
     st.download_button("Download simpel CSV-voorbeeld", voorbeeld.to_csv(index=False), "simpel_watchlist_voorbeeld.csv", "text/csv")
 
-with tab8:
+with tab9:
     st.subheader("Hoe de score werkt")
     st.write("""
     De korte-termijnscore loopt van 0 tot 10:

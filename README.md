@@ -1,8 +1,11 @@
-# BelegRadar v5.1
+# BelegRadar v5.2
 
-Fix:
-- Portfolio-simulatie gebruikt nu vaste invoervelden in plaats van een data-editor.
-- Ingevulde bedragen verdwijnen niet meer na Enter.
-- Resultaat verschijnt direct onder de invoervelden.
+Nieuw:
+- 🎮 Oefenportfolio / paper trading met nepgeld
+- Virtueel kopen en verkopen
+- Portfolio waarde beweegt mee met actuele koersdata
+- Cash, posities, totale waarde en winst/verlies
+- Download oefenportfolio als CSV
+- Kleurthema's verbeterd voor betere leesbaarheid
 
 Geen financieel advies. Prijzen, kosten en scores zijn schattingen.
