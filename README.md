@@ -1,9 +1,9 @@
-# BelegRadar v4.1
+# BelegRadar v4.2
 
-Verbeterde layout:
-- Top-kandidaten zijn nu compacter
-- Tekst is leesbaar in dark mode
-- Betere kaarten en badges
+Nieuw:
+- Netto winst calculator
+- CSV upload-hulp
+- Mobielvriendelijke uitleg voor eigen watchlist
 - Jouw standaard watchlist blijft behouden
 
 Geen financieel advies.

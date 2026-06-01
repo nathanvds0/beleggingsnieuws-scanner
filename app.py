@@ -5,7 +5,7 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="BelegRadar v4.1", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v4.2", page_icon="📈", layout="wide")
 
 st.markdown("""
 <style>
@@ -29,16 +29,8 @@ st.markdown("""
     border: 1px solid #374151;
     margin-bottom: 12px;
 }
-.candidate-card h3 {
-    color: #ffffff;
-    font-size: 20px;
-    margin: 0 0 8px 0;
-}
-.candidate-card p {
-    color: #d1d5db;
-    margin: 6px 0;
-    font-size: 14px;
-}
+.candidate-card h3 { color: #ffffff; font-size: 20px; margin: 0 0 8px 0; }
+.candidate-card p { color: #d1d5db; margin: 6px 0; font-size: 14px; }
 .candidate-card strong { color: #ffffff; }
 
 .compact-card {
@@ -50,6 +42,17 @@ st.markdown("""
     margin-bottom: 10px;
 }
 .compact-card p { color: #d1d5db; margin: 4px 0; }
+
+.info-card {
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px solid #334155;
+    margin-bottom: 14px;
+}
+.info-card p, .info-card li { color: #d1d5db; }
+.info-card h3 { color: #ffffff; }
 
 .badge {
     padding: 5px 10px;
@@ -313,7 +316,7 @@ col1.metric("Gescand", len(df))
 col2.metric("Beste score", "n.v.t." if best is None else f"{best['Ticker']} — {best['Totaalscore']}/10")
 col3.metric("Sterke kandidaten", int(df["Actie"].isin(["KOOP-KANDIDAAT", "SERIEUS ANALYSEREN", "WACHT OP VOLUME"]).sum()))
 
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Overzicht", "🔥 Top-kandidaten", "📰 Details & nieuws", "ℹ️ Uitleg"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Overzicht", "🔥 Top-kandidaten", "📰 Details & nieuws", "💸 Netto winst", "📱 CSV upload-hulp", "ℹ️ Uitleg"])
 
 with tab1:
     st.subheader("Automatische beoordeling")
@@ -322,7 +325,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_1.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_2.csv", "text/csv")
 
 with tab2:
     st.subheader("Top 3 volgens BelegRadar")
@@ -389,6 +392,83 @@ with tab3:
                 st.write("Geen nieuws gevonden.")
 
 with tab4:
+    st.subheader("💸 Netto winst na kosten")
+    st.write("Bereken hoeveel winst je echt overhoudt na brokerkosten, spread en eventuele belasting.")
+    c1, c2 = st.columns(2)
+    with c1:
+        inleg = st.number_input("Inlegbedrag (€)", min_value=0.0, value=1000.0, step=50.0)
+        bruto_pct = st.number_input("Bruto koerswinst (%)", value=5.0, step=0.1)
+        aankoopkost = st.number_input("Aankoopkost (€)", min_value=0.0, value=2.0, step=0.5)
+        verkoopkost = st.number_input("Verkoopkost (€)", min_value=0.0, value=2.0, step=0.5)
+    with c2:
+        spread_pct = st.number_input("Geschatte spread/slippage (%)", min_value=0.0, value=0.2, step=0.05)
+        belasting_pct = st.number_input("Belasting op winst (%)", min_value=0.0, value=0.0, step=0.5)
+        extra_kosten = st.number_input("Extra kosten (€)", min_value=0.0, value=0.0, step=0.5)
+
+    bruto_winst = inleg * bruto_pct / 100
+    spread_kost = inleg * spread_pct / 100
+    winst_na_directe_kosten = bruto_winst - aankoopkost - verkoopkost - spread_kost - extra_kosten
+    belasting = max(winst_na_directe_kosten, 0) * belasting_pct / 100
+    netto_winst = winst_na_directe_kosten - belasting
+    netto_pct = (netto_winst / inleg * 100) if inleg > 0 else 0
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Bruto winst", f"€{bruto_winst:,.2f}")
+    m2.metric("Netto winst", f"€{netto_winst:,.2f}")
+    m3.metric("Netto rendement", f"{netto_pct:.2f}%")
+
+    st.info(f"Voorbeeld: bij {bruto_pct:.2f}% bruto rendement blijft ongeveer {netto_pct:.2f}% netto over na de ingevulde kosten.")
+    st.warning("Kosten verschillen per broker en land. Vul hier je eigen schatting in. Dit is geen fiscaal of financieel advies.")
+
+with tab5:
+    st.subheader("📱 Zelf een watchlist uploaden")
+    st.markdown("""
+    Je kunt zelf een CSV-bestand uploaden met aandelen die jij wilt scannen.
+
+    Je bestand moet deze 5 kolommen hebben:
+
+    `ticker, naam, sector, keywords, sector_score`
+    """)
+
+    st.markdown("""
+    <div class="info-card">
+    <h3>Wat betekent elke kolom?</h3>
+    <ul>
+        <li><strong>ticker</strong>: de beurscode, bijvoorbeeld IBM, INTC, ASML.AS, ELI.BR, MC.PA</li>
+        <li><strong>naam</strong>: de gewone naam, bijvoorbeeld Microsoft</li>
+        <li><strong>sector</strong>: zelf gekozen beschrijving, bijvoorbeeld AI / Cloud</li>
+        <li><strong>keywords</strong>: woorden waarop de scanner nieuws controleert, gescheiden door komma's</li>
+        <li><strong>sector_score</strong>: 0, 1 of 2. Gebruik 2 voor sterke/hype sectoren, 1 normaal, 0 zwak/onduidelijk</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+    voorbeeld = pd.DataFrame([
+        {"ticker":"IBM","naam":"IBM","sector":"AI / Cloud","keywords":"earnings,guidance,AI,cloud,upgrade","sector_score":1},
+        {"ticker":"INTC","naam":"Intel","sector":"Semiconductors","keywords":"earnings,guidance,AI chip,foundry,datacenter","sector_score":1},
+        {"ticker":"ASML.AS","naam":"ASML","sector":"Semiconductor equipment","keywords":"earnings,guidance,EUV,orders,AI chips","sector_score":2},
+    ])
+    st.dataframe(voorbeeld, use_container_width=True, hide_index=True)
+    st.download_button("Download simpel CSV-voorbeeld", voorbeeld.to_csv(index=False), "simpel_watchlist_voorbeeld.csv", "text/csv")
+
+    st.markdown("""
+    ### Uploaden met je gsm
+    1. Download het voorbeeldbestand hierboven.
+    2. Open het in Google Sheets, Excel of Numbers.
+    3. Pas de regels aan of voeg nieuwe aandelen toe.
+    4. Sla/exporteer het bestand als **CSV**.
+    5. Ga terug naar deze website.
+    6. Klik links op **Upload** en kies je CSV-bestand.
+
+    ### Ticker voorbeelden
+    - Amerikaanse aandelen: `IBM`, `INTC`, `MSFT`, `NVDA`
+    - Nederlandse aandelen: `ASML.AS`, `ADYEN.AS`, `INGA.AS`
+    - Belgische aandelen: `ELI.BR`, `AED.BR`
+    - Franse aandelen: `MC.PA`
+    - Crypto: `BTC-USD`, `ETH-USD`
+    """)
+
+with tab6:
     st.subheader("Hoe de score werkt")
     st.write("""
     De score loopt van 0 tot 10 en kijkt naar vijf onderdelen:
