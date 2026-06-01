@@ -1,0 +1,6 @@
+ticker,naam,sector,keywords,sector_score
+NVDA,NVIDIA,AI / Semiconductors,"earnings,guidance,AI chip,demand,upgrade,partnership",2
+ASML.AS,ASML,Semiconductors,"earnings,guidance,EUV,chip demand,China,orders",2
+MSFT,Microsoft,AI / Cloud,"earnings,Azure,AI,Copilot,guidance,partnership",2
+BTC-USD,Bitcoin,Crypto,"ETF inflows,halving,regulation,institutional,rate cuts",1
+ETH-USD,Ethereum,Crypto,"ETF,upgrade,staking,DeFi,regulation",1
