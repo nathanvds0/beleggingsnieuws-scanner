@@ -1,15 +1,8 @@
-# BelegRadar v5
+# BelegRadar v5.1
 
-Nieuwe grote versie:
-- Veiligere taal: STERK RESEARCH-SIGNAAL i.p.v. KOOP-KANDIDAAT
-- Korte termijn en lange termijn score
-- Score-uitleg per belegging
-- Filters
-- Mobiele kaartweergave
-- Brokerkosten-presets
-- Portfolio-simulatie
-- Alerts op de pagina
-- Betere zoek-suggesties
-- Full color thema's
+Fix:
+- Portfolio-simulatie gebruikt nu vaste invoervelden in plaats van een data-editor.
+- Ingevulde bedragen verdwijnen niet meer na Enter.
+- Resultaat verschijnt direct onder de invoervelden.
 
 Geen financieel advies. Prijzen, kosten en scores zijn schattingen.

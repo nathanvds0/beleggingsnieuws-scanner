@@ -6,7 +6,7 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="BelegRadar v5", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v5.1", page_icon="📈", layout="wide")
 
 THEMES = {
     "🌈 Neon donker": {
@@ -636,7 +636,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", filtered.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v5.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", filtered.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v5_1.csv", "text/csv")
 
 with tab2:
     st.subheader("Mobiele kaartweergave")
@@ -708,21 +708,78 @@ with tab4:
 
 with tab5:
     st.subheader("💼 Portfolio simulatie")
-    st.write("Simuleer hoeveel je ongeveer zou kopen en wat je totale break-even/kosten zijn.")
-    sim = df[["Ticker","Naam","Prijs per stuk","Netto aankoopprijs/stuk","Break-even prijs","Kosten %"]].copy()
-    sim["Inleg (€)"] = 0.0
-    edited = st.data_editor(sim, use_container_width=True, hide_index=True, disabled=["Ticker","Naam","Prijs per stuk","Netto aankoopprijs/stuk","Break-even prijs","Kosten %"])
-    valid = edited[(edited["Inleg (€)"] > 0) & (edited["Prijs per stuk"].notna())].copy()
-    if valid.empty:
-        st.info("Vul in de kolom 'Inleg (€)' een bedrag in bij één of meer beleggingen.")
+    st.write("Vul per belegging een bedrag in. Deze invoervelden blijven staan nadat je op Enter drukt.")
+
+    if "portfolio_amounts" not in st.session_state:
+        st.session_state.portfolio_amounts = {}
+
+    c_reset, c_info = st.columns([1, 3])
+    with c_reset:
+        if st.button("Reset simulatie"):
+            st.session_state.portfolio_amounts = {}
+            st.success("Simulatie gereset.")
+    with c_info:
+        st.caption("Tip: vul bijvoorbeeld 500 in bij MSFT en 300 bij ASML. De resultaten verschijnen direct onder de invoervelden.")
+
+    st.write("### Bedragen invullen")
+    sim_rows = []
+    visible = df[["Ticker","Naam","Prijs per stuk","Netto aankoopprijs/stuk","Break-even prijs","Kosten %"]].copy()
+
+    for _, row in visible.iterrows():
+        ticker = str(row["Ticker"])
+        prijs = row["Prijs per stuk"]
+        kosten_pct = row["Kosten %"]
+        break_even = row["Break-even prijs"]
+
+        with st.expander(f"{ticker} — {row['Naam']} | prijs €{prijs} | kosten {kosten_pct}%", expanded=False):
+            amount = st.number_input(
+                f"Inleg voor {ticker} (€)",
+                min_value=0.0,
+                value=float(st.session_state.portfolio_amounts.get(ticker, 0.0)),
+                step=50.0,
+                key=f"portfolio_amount_{ticker}"
+            )
+            st.session_state.portfolio_amounts[ticker] = amount
+
+            if amount > 0 and pd.notna(prijs) and prijs > 0:
+                estimated_shares = amount / prijs
+                estimated_costs = amount * (kosten_pct / 100) if pd.notna(kosten_pct) else 0
+                sim_rows.append({
+                    "Ticker": ticker,
+                    "Naam": row["Naam"],
+                    "Inleg (€)": round(amount, 2),
+                    "Prijs per stuk": prijs,
+                    "Geschatte stuks": round(estimated_shares, 4),
+                    "Kosten %": kosten_pct,
+                    "Geschatte kosten (€)": round(estimated_costs, 2),
+                    "Break-even prijs": break_even,
+                })
+                st.write(f"Geschatte stuks: **{estimated_shares:.4f}**")
+                st.write(f"Geschatte kosten: **€{estimated_costs:.2f}**")
+            elif amount > 0:
+                st.warning("Geen prijsdata beschikbaar voor deze ticker. Controleer de ticker.")
+
+    st.write("### Resultaat")
+    if not sim_rows:
+        st.info("Vul hierboven bij één of meer beleggingen een bedrag groter dan 0 in.")
     else:
-        valid["Geschatte stuks"] = valid["Inleg (€)"] / valid["Prijs per stuk"]
-        valid["Geschatte kosten"] = valid["Inleg (€)"] * (valid["Kosten %"] / 100)
+        valid = pd.DataFrame(sim_rows)
         st.dataframe(valid, use_container_width=True, hide_index=True)
+        total_invested = valid["Inleg (€)"].sum()
+        total_costs = valid["Geschatte kosten (€)"].sum()
+        avg_cost_pct = (total_costs / total_invested * 100) if total_invested > 0 else 0
+
         p1, p2, p3 = st.columns(3)
-        p1.metric("Totale inleg", f"€{valid['Inleg (€)'].sum():,.2f}")
-        p2.metric("Geschatte totale kosten", f"€{valid['Geschatte kosten'].sum():,.2f}")
-        p3.metric("Gemiddelde kosten %", f"{(valid['Geschatte kosten'].sum()/valid['Inleg (€)'].sum()*100):.2f}%")
+        p1.metric("Totale inleg", f"€{total_invested:,.2f}")
+        p2.metric("Geschatte totale kosten", f"€{total_costs:,.2f}")
+        p3.metric("Gemiddelde kosten %", f"{avg_cost_pct:.2f}%")
+
+        st.download_button(
+            "Download portfolio-simulatie",
+            valid.to_csv(index=False),
+            "portfolio_simulatie.csv",
+            "text/csv"
+        )
 
 with tab6:
     st.subheader("🚨 Alerts")
