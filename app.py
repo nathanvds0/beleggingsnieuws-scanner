@@ -5,7 +5,7 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="BelegRadar v4.2", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v4.3", page_icon="📈", layout="wide")
 
 st.markdown("""
 <style>
@@ -13,7 +13,7 @@ st.markdown("""
 
 .hero {
     background: linear-gradient(135deg, #111827, #273449);
-    color: yellow;
+    color: white;
     padding: 26px 30px;
     border-radius: 20px;
     margin-bottom: 20px;
@@ -277,7 +277,58 @@ if missing:
 st.sidebar.header("Instellingen")
 max_news = st.sidebar.slider("Nieuwsberichten per asset", 3, 15, 8)
 extra_query = st.sidebar.text_input("Extra zoekterm", value="stock news")
+
+st.sidebar.header("Kosten per transactie")
+orderbedrag = st.sidebar.number_input("Gemiddeld orderbedrag (€)", min_value=1.0, value=1000.0, step=50.0)
+aankoopkost_vast = st.sidebar.number_input("Vaste aankoopkost (€)", min_value=0.0, value=2.0, step=0.5)
+verkoopkost_vast = st.sidebar.number_input("Vaste verkoopkost (€)", min_value=0.0, value=2.0, step=0.5)
+aankoopkost_pct = st.sidebar.number_input("Aankoopkost (%)", min_value=0.0, value=0.00, step=0.05)
+verkoopkost_pct = st.sidebar.number_input("Verkoopkost (%)", min_value=0.0, value=0.00, step=0.05)
+spread_pct = st.sidebar.number_input("Spread/slippage (%)", min_value=0.0, value=0.20, step=0.05)
+belasting_winst_pct = st.sidebar.number_input("Belasting op winst (%)", min_value=0.0, value=0.0, step=0.5)
+
+st.sidebar.caption("Deze kosten zijn schattingen. Vul je eigen brokerkosten in.")
 st.sidebar.download_button("Download standaard-watchlist", DEFAULT_WATCHLIST.to_csv(index=False), file_name="watchlist_template.csv", mime="text/csv")
+
+def bereken_kosten_per_asset(laatste_koers, orderbedrag, aankoopkost_vast, verkoopkost_vast, aankoopkost_pct, verkoopkost_pct, spread_pct):
+    if laatste_koers is None or laatste_koers <= 0 or orderbedrag <= 0:
+        return {
+            "aantal_stuks": None,
+            "aankoopkosten_totaal": None,
+            "verkoopkosten_totaal": None,
+            "kosten_totaal": None,
+            "kosten_pct_order": None,
+            "netto_aankoopprijs_per_stuk": None,
+            "break_even_prijs": None,
+            "nodige_stijging_pct": None,
+        }
+
+    aantal_stuks = orderbedrag / laatste_koers
+
+    spread_kost_totaal = orderbedrag * spread_pct / 100
+    aankoop_pct_kost = orderbedrag * aankoopkost_pct / 100
+    verkoop_pct_kost = orderbedrag * verkoopkost_pct / 100
+
+    aankoopkosten_totaal = aankoopkost_vast + aankoop_pct_kost + (spread_kost_totaal / 2)
+    verkoopkosten_totaal = verkoopkost_vast + verkoop_pct_kost + (spread_kost_totaal / 2)
+    kosten_totaal = aankoopkosten_totaal + verkoopkosten_totaal
+
+    kosten_pct_order = (kosten_totaal / orderbedrag) * 100
+
+    netto_aankoopprijs_per_stuk = laatste_koers + (aankoopkosten_totaal / aantal_stuks)
+    break_even_prijs = laatste_koers + (kosten_totaal / aantal_stuks)
+    nodige_stijging_pct = ((break_even_prijs / laatste_koers) - 1) * 100
+
+    return {
+        "aantal_stuks": aantal_stuks,
+        "aankoopkosten_totaal": aankoopkosten_totaal,
+        "verkoopkosten_totaal": verkoopkosten_totaal,
+        "kosten_totaal": kosten_totaal,
+        "kosten_pct_order": kosten_pct_order,
+        "netto_aankoopprijs_per_stuk": netto_aankoopprijs_per_stuk,
+        "break_even_prijs": break_even_prijs,
+        "nodige_stijging_pct": nodige_stijging_pct,
+    }
 
 results = []
 with st.spinner("Laatste nieuws en koersdata ophalen..."):
@@ -293,6 +344,15 @@ with st.spinner("Laatste nieuws en koersdata ophalen..."):
         rr_score = risk_reward_score(pv["pct_7d"], pv["pct_30d"], pv["volume_ratio"])
         total = sector_score + ns["catalyst_score"] + pv["price_score"] + pv["volume_score"] + rr_score
         action, decision, reasons, warnings = automatic_decision(total, ns["catalyst_score"], pv["price_score"], pv["volume_score"], rr_score, ns["negative_hits"], pv["pct_7d"], pv["volume_ratio"])
+        kosten = bereken_kosten_per_asset(
+            pv["last_close"],
+            orderbedrag,
+            aankoopkost_vast,
+            verkoopkost_vast,
+            aankoopkost_pct,
+            verkoopkost_pct,
+            spread_pct
+        )
         results.append({
             "Ticker": ticker, "Naam": name, "Sector": sector, "Actie": action, "Beoordeling": decision,
             "Totaalscore": total, "Sector-score": sector_score, "Katalysator-score": ns["catalyst_score"],
@@ -300,6 +360,15 @@ with st.spinner("Laatste nieuws en koersdata ophalen..."):
             "Trend": pv["trend"], "7d %": None if pv["pct_7d"] is None else round(pv["pct_7d"], 2),
             "30d %": None if pv["pct_30d"] is None else round(pv["pct_30d"], 2),
             "Volume ratio": None if pv["volume_ratio"] is None else round(pv["volume_ratio"], 2),
+            "Prijs per stuk": None if pv["last_close"] is None else round(pv["last_close"], 2),
+            "Aandelen bij order": None if kosten["aantal_stuks"] is None else round(kosten["aantal_stuks"], 4),
+            "Aankoopkosten": None if kosten["aankoopkosten_totaal"] is None else round(kosten["aankoopkosten_totaal"], 2),
+            "Verkoopkosten": None if kosten["verkoopkosten_totaal"] is None else round(kosten["verkoopkosten_totaal"], 2),
+            "Totale kosten": None if kosten["kosten_totaal"] is None else round(kosten["kosten_totaal"], 2),
+            "Kosten %": None if kosten["kosten_pct_order"] is None else round(kosten["kosten_pct_order"], 2),
+            "Netto aankoopprijs/stuk": None if kosten["netto_aankoopprijs_per_stuk"] is None else round(kosten["netto_aankoopprijs_per_stuk"], 2),
+            "Break-even prijs": None if kosten["break_even_prijs"] is None else round(kosten["break_even_prijs"], 2),
+            "Nodige stijging %": None if kosten["nodige_stijging_pct"] is None else round(kosten["nodige_stijging_pct"], 2),
             "Laatste koers": None if pv["last_close"] is None else round(pv["last_close"], 2),
             "SMA20": None if pv["sma20"] is None else round(pv["sma20"], 2),
             "SMA50": None if pv["sma50"] is None else round(pv["sma50"], 2),
@@ -316,16 +385,16 @@ col1.metric("Gescand", len(df))
 col2.metric("Beste score", "n.v.t." if best is None else f"{best['Ticker']} — {best['Totaalscore']}/10")
 col3.metric("Sterke kandidaten", int(df["Actie"].isin(["KOOP-KANDIDAAT", "SERIEUS ANALYSEREN", "WACHT OP VOLUME"]).sum()))
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Overzicht", "🔥 Top-kandidaten", "📰 Details & nieuws", "💸 Netto winst", "📱 CSV upload-hulp", "ℹ️ Uitleg"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Overzicht", "🔥 Top-kandidaten", "📰 Details & nieuws", "💸 Kosten-uitleg", "📱 CSV upload-hulp", "ℹ️ Uitleg"])
 
 with tab1:
     st.subheader("Automatische beoordeling")
     st.dataframe(
-        df[["Ticker","Naam","Actie","Totaalscore","Beoordeling","7d %","30d %","Volume ratio","Trend"]],
+        df[["Ticker","Naam","Actie","Totaalscore","Prijs per stuk","Netto aankoopprijs/stuk","Totale kosten","Kosten %","Break-even prijs","Nodige stijging %","7d %","30d %","Volume ratio","Beoordeling"]],
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_2.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_3.csv", "text/csv")
 
 with tab2:
     st.subheader("Top 3 volgens BelegRadar")
@@ -340,6 +409,8 @@ with tab2:
                 {action_badge(row['Actie'])}
                 <p><strong>Score:</strong> {row['Totaalscore']}/10</p>
                 <p><strong>7d:</strong> {row['7d %']}% &nbsp; <strong>30d:</strong> {row['30d %']}%</p>
+                <p><strong>Prijs:</strong> €{row['Prijs per stuk']} | <strong>Netto/stuk:</strong> €{row['Netto aankoopprijs/stuk']}</p>
+                <p><strong>Break-even:</strong> €{row['Break-even prijs']} | <strong>Nodig:</strong> {row['Nodige stijging %']}%</p>
                 <p><strong>Volume:</strong> {row['Volume ratio']}x</p>
                 <p class="small-muted">{row['Beoordeling']}</p>
             </div>
@@ -355,7 +426,8 @@ with tab2:
             <div class="compact-card">
                 <strong>{row['Ticker']} — {row['Naam']}</strong><br>
                 {action_badge(row['Actie'])}
-                <p><strong>Score:</strong> {row['Totaalscore']}/10 | <strong>Volume:</strong> {row['Volume ratio']}x</p>
+                <p><strong>Score:</strong> {row['Totaalscore']}/10 | <strong>Prijs:</strong> €{row['Prijs per stuk']} | <strong>Netto/stuk:</strong> €{row['Netto aankoopprijs/stuk']}</p>
+                <p><strong>Break-even:</strong> €{row['Break-even prijs']} | <strong>Nodige stijging:</strong> {row['Nodige stijging %']}%</p>
                 <p>{row['Beoordeling']}</p>
             </div>
             """, unsafe_allow_html=True)
@@ -370,6 +442,16 @@ with tab3:
             c2.metric("7 dagen", "n.v.t." if item["7d %"] is None else f"{item['7d %']}%")
             c3.metric("30 dagen", "n.v.t." if item["30d %"] is None else f"{item['30d %']}%")
             c4.metric("Volume ratio", "n.v.t." if item["Volume ratio"] is None else f"{item['Volume ratio']}x")
+
+            st.write("### Prijs & kosten")
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Prijs per stuk", "n.v.t." if item["Prijs per stuk"] is None else f"€{item['Prijs per stuk']}")
+            k2.metric("Netto aankoop/stuk", "n.v.t." if item["Netto aankoopprijs/stuk"] is None else f"€{item['Netto aankoopprijs/stuk']}")
+            k3.metric("Break-even prijs", "n.v.t." if item["Break-even prijs"] is None else f"€{item['Break-even prijs']}")
+            k4.metric("Nodige stijging", "n.v.t." if item["Nodige stijging %"] is None else f"{item['Nodige stijging %']}%")
+
+            st.write(f"Bij een order van **€{orderbedrag:,.2f}** koop je ongeveer **{item['Aandelen bij order']} stuks**. Geschatte totale kosten voor aankoop + verkoop: **€{item['Totale kosten']}** (**{item['Kosten %']}%** van je order).")
+
             st.write("### Automatische beoordeling")
             st.write(f"**Beoordeling:** {item['Beoordeling']}")
             st.write(f"**Waarom:** {item['Redenen']}")
@@ -392,33 +474,24 @@ with tab3:
                 st.write("Geen nieuws gevonden.")
 
 with tab4:
-    st.subheader("💸 Netto winst na kosten")
-    st.write("Bereken hoeveel winst je echt overhoudt na brokerkosten, spread en eventuele belasting.")
-    c1, c2 = st.columns(2)
-    with c1:
-        inleg = st.number_input("Inlegbedrag (€)", min_value=0.0, value=1000.0, step=50.0)
-        bruto_pct = st.number_input("Bruto koerswinst (%)", value=5.0, step=0.1)
-        aankoopkost = st.number_input("Aankoopkost (€)", min_value=0.0, value=2.0, step=0.5)
-        verkoopkost = st.number_input("Verkoopkost (€)", min_value=0.0, value=2.0, step=0.5)
-    with c2:
-        spread_pct = st.number_input("Geschatte spread/slippage (%)", min_value=0.0, value=0.2, step=0.05)
-        belasting_pct = st.number_input("Belasting op winst (%)", min_value=0.0, value=0.0, step=0.5)
-        extra_kosten = st.number_input("Extra kosten (€)", min_value=0.0, value=0.0, step=0.5)
+    st.subheader("💸 Kosten-uitleg")
+    st.write("De kosten worden nu automatisch naast elke belegging berekend op basis van je instellingen links in de sidebar.")
 
-    bruto_winst = inleg * bruto_pct / 100
-    spread_kost = inleg * spread_pct / 100
-    winst_na_directe_kosten = bruto_winst - aankoopkost - verkoopkost - spread_kost - extra_kosten
-    belasting = max(winst_na_directe_kosten, 0) * belasting_pct / 100
-    netto_winst = winst_na_directe_kosten - belasting
-    netto_pct = (netto_winst / inleg * 100) if inleg > 0 else 0
+    st.markdown("""
+    ### Wat betekenen de nieuwe kolommen?
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Bruto winst", f"€{bruto_winst:,.2f}")
-    m2.metric("Netto winst", f"€{netto_winst:,.2f}")
-    m3.metric("Netto rendement", f"{netto_pct:.2f}%")
+    - **Prijs per stuk**: de laatst opgehaalde koers van Yahoo Finance.
+    - **Netto aankoopprijs/stuk**: prijs per aandeel inclusief geschatte aankoopkosten en halve spread.
+    - **Totale kosten**: geschatte aankoopkosten + verkoopkosten + spread/slippage.
+    - **Kosten %**: hoeveel procent van je order naar kosten gaat.
+    - **Break-even prijs**: vanaf welke prijs je ongeveer uit de kosten bent.
+    - **Nodige stijging %**: hoeveel het aandeel moet stijgen voor je netto ongeveer break-even staat.
 
-    st.info(f"Voorbeeld: bij {bruto_pct:.2f}% bruto rendement blijft ongeveer {netto_pct:.2f}% netto over na de ingevulde kosten.")
-    st.warning("Kosten verschillen per broker en land. Vul hier je eigen schatting in. Dit is geen fiscaal of financieel advies.")
+    Voorbeeld: als een aandeel bruto 5% stijgt, maar je totale kosten 1%, dan hou je ongeveer 4% netto over vóór eventuele belastingen.
+    """)
+
+    st.info("Wil je de kosten aanpassen? Gebruik links in de sidebar de velden bij 'Kosten per transactie'.")
+    st.warning("De prijsdata en kosten zijn schattingen. Check altijd je echte broker/bank-app voordat je koopt.")
 
 with tab5:
     st.subheader("📱 Zelf een watchlist uploaden")
