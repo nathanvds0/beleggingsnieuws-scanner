@@ -7,8 +7,10 @@ from urllib.parse import quote_plus
 from datetime import datetime
 import json
 import base64
+import hashlib
+import requests
 
-st.set_page_config(page_title="BelegRadar v5.4", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v6", page_icon="📈", layout="wide")
 
 THEMES = {
     "🌈 Neon donker": {
@@ -189,6 +191,108 @@ st.markdown("""
 if "force_refresh_token" not in st.session_state:
     st.session_state.force_refresh_token = 0
 
+
+def get_supabase_config():
+    try:
+        url = st.secrets["SUPABASE_URL"].rstrip("/")
+        key = st.secrets["SUPABASE_KEY"]
+        return url, key
+    except Exception:
+        return None, None
+
+def supabase_headers():
+    url, key = get_supabase_config()
+    return {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+
+def password_hash(password):
+    return hashlib.sha256(str(password).encode("utf-8")).hexdigest()
+
+def db_ready():
+    url, key = get_supabase_config()
+    return bool(url and key)
+
+def db_get_user(username):
+    if not db_ready():
+        return None
+    url, _ = get_supabase_config()
+    endpoint = f"{url}/rest/v1/paper_portfolios"
+    params = {"username": f"eq.{username}", "select": "*"}
+    r = requests.get(endpoint, headers=supabase_headers(), params=params, timeout=15)
+    if r.status_code >= 400:
+        raise Exception(r.text)
+    data = r.json()
+    return data[0] if data else None
+
+def db_create_user(username, password):
+    if not db_ready():
+        raise Exception("Supabase secrets ontbreken.")
+    url, _ = get_supabase_config()
+    endpoint = f"{url}/rest/v1/paper_portfolios"
+    payload = {
+        "username": username,
+        "password": password_hash(password),
+        "cash": 10000,
+        "positions": [],
+        "watchlist": DEFAULT_WATCHLIST.to_dict("records"),
+    }
+    r = requests.post(endpoint, headers=supabase_headers(), data=json.dumps(payload), timeout=15)
+    if r.status_code >= 400:
+        raise Exception(r.text)
+    return r.json()[0] if r.json() else payload
+
+def db_update_user_state(username, cash=None, positions=None, watchlist=None):
+    if not db_ready() or not username:
+        return False
+    url, _ = get_supabase_config()
+    endpoint = f"{url}/rest/v1/paper_portfolios"
+    payload = {"updated_at": datetime.utcnow().isoformat()}
+    if cash is not None:
+        payload["cash"] = cash
+    if positions is not None:
+        payload["positions"] = positions
+    if watchlist is not None:
+        payload["watchlist"] = watchlist
+    params = {"username": f"eq.{username}"}
+    r = requests.patch(endpoint, headers=supabase_headers(), params=params, data=json.dumps(payload), timeout=15)
+    if r.status_code >= 400:
+        raise Exception(r.text)
+    return True
+
+def load_user_state_from_db(user):
+    if not user:
+        return
+    try:
+        st.session_state.paper_cash = float(user.get("cash", 10000.0))
+        positions = user.get("positions", [])
+        st.session_state.paper_positions = positions if isinstance(positions, list) else []
+        watchlist = user.get("watchlist", [])
+        if isinstance(watchlist, list) and watchlist:
+            st.session_state.watchlist_df = normalize_watchlist(pd.DataFrame(watchlist))
+        else:
+            st.session_state.watchlist_df = DEFAULT_WATCHLIST.copy()
+    except Exception as e:
+        st.warning(f"Kon data niet volledig laden: {e}")
+
+def save_current_user_state():
+    username = st.session_state.get("logged_in_user")
+    if not username or not db_ready():
+        return
+    try:
+        watchlist_records = normalize_watchlist(st.session_state.get("watchlist_df", DEFAULT_WATCHLIST.copy())).to_dict("records")
+        db_update_user_state(
+            username,
+            cash=float(st.session_state.get("paper_cash", 10000.0)),
+            positions=st.session_state.get("paper_positions", []),
+            watchlist=watchlist_records,
+        )
+    except Exception as e:
+        st.warning(f"Opslaan naar account mislukt: {e}")
+
 DEFAULT_WATCHLIST = pd.DataFrame([
     {"ticker":"IBM","naam":"IBM","sector":"AI / Cloud / Enterprise software","keywords":"earnings,guidance,AI,watsonx,cloud,mainframe,consulting,dividend,upgrade,partnership","sector_score":1},
     {"ticker":"INTC","naam":"Intel","sector":"Semiconductors / Foundry","keywords":"earnings,guidance,foundry,AI chip,datacenter,manufacturing,CHIPS Act,upgrade,partnership","sector_score":1},
@@ -293,6 +397,7 @@ def add_asset_to_watchlist(ticker, naam, sector, keywords, sector_score):
         "sector_score": int(sector_score),
     }])
     st.session_state.watchlist_df = normalize_watchlist(pd.concat([st.session_state.watchlist_df, new_row], ignore_index=True))
+    save_current_user_state()
 
 def remove_asset_from_watchlist(ticker):
     init_watchlist_state()
@@ -300,12 +405,14 @@ def remove_asset_from_watchlist(ticker):
     st.session_state.watchlist_df = st.session_state.watchlist_df[
         st.session_state.watchlist_df["ticker"].astype(str).str.upper() != ticker
     ].reset_index(drop=True)
+    save_current_user_state()
 
 def load_watchlist():
     init_watchlist_state()
     uploaded = st.sidebar.file_uploader("Upload je eigen watchlist CSV", type=["csv"])
     if uploaded is not None:
         st.session_state.watchlist_df = normalize_watchlist(pd.read_csv(uploaded))
+        save_current_user_state()
     return normalize_watchlist(st.session_state.watchlist_df.copy())
 
 def action_badge(action):
@@ -561,6 +668,7 @@ def paper_buy(ticker, name, amount, price):
         "buy_time": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
     })
     persist_paper_to_url()
+    save_current_user_state()
     return True, f"Virtueel gekocht: {shares:.4f} stuks {ticker} voor €{amount:.2f}."
 
 def paper_sell(position_index, current_price):
@@ -575,7 +683,64 @@ def paper_sell(position_index, current_price):
     sold = st.session_state.paper_positions.pop(position_index)
     pnl = value - sold["invested"]
     persist_paper_to_url()
+    save_current_user_state()
     return True, f"Virtueel verkocht: {sold['ticker']} voor €{value:.2f}. Resultaat: €{pnl:.2f}."
+
+
+
+# Account login
+st.sidebar.header("Account")
+
+if not db_ready():
+    st.sidebar.warning("Supabase Secrets ontbreken. Accounts werken pas nadat SUPABASE_URL en SUPABASE_KEY zijn ingesteld.")
+else:
+    if "logged_in_user" not in st.session_state:
+        st.session_state.logged_in_user = None
+
+    if st.session_state.logged_in_user:
+        st.sidebar.success(f"Ingelogd als {st.session_state.logged_in_user}")
+        if st.sidebar.button("Uitloggen"):
+            st.session_state.logged_in_user = None
+            st.session_state.paper_loaded_from_url = False
+            st.success("Uitgelogd.")
+    else:
+        login_tab, register_tab = st.sidebar.tabs(["Login", "Account maken"])
+        with login_tab:
+            login_username = st.text_input("Gebruikersnaam", key="login_username")
+            login_password = st.text_input("Wachtwoord", type="password", key="login_password")
+            if st.button("Inloggen"):
+                try:
+                    user = db_get_user(login_username.strip())
+                    if user and user.get("password") == password_hash(login_password):
+                        st.session_state.logged_in_user = login_username.strip()
+                        load_user_state_from_db(user)
+                        st.success("Ingelogd. Portfolio en watchlist geladen.")
+                    else:
+                        st.error("Gebruikersnaam of wachtwoord klopt niet.")
+                except Exception as e:
+                    st.error(f"Login mislukt: {e}")
+
+        with register_tab:
+            reg_username = st.text_input("Nieuwe gebruikersnaam", key="reg_username")
+            reg_password = st.text_input("Nieuw wachtwoord", type="password", key="reg_password")
+            reg_password2 = st.text_input("Herhaal wachtwoord", type="password", key="reg_password2")
+            if st.button("Account maken"):
+                try:
+                    if len(reg_username.strip()) < 3:
+                        st.error("Gebruikersnaam moet minstens 3 tekens hebben.")
+                    elif len(reg_password) < 6:
+                        st.error("Wachtwoord moet minstens 6 tekens hebben.")
+                    elif reg_password != reg_password2:
+                        st.error("Wachtwoorden komen niet overeen.")
+                    elif db_get_user(reg_username.strip()):
+                        st.error("Deze gebruikersnaam bestaat al.")
+                    else:
+                        user = db_create_user(reg_username.strip(), reg_password)
+                        st.session_state.logged_in_user = reg_username.strip()
+                        load_user_state_from_db(user)
+                        st.success("Account gemaakt en ingelogd.")
+                except Exception as e:
+                    st.error(f"Account maken mislukt: {e}")
 
 
 # Sidebar
@@ -629,6 +794,7 @@ with st.sidebar.expander("🧹 Belegging verwijderen", expanded=False):
 
 if st.sidebar.button("Reset naar standaardlijst"):
     st.session_state.watchlist_df = DEFAULT_WATCHLIST.copy()
+    save_current_user_state()
     st.success("Watchlist gereset.")
 
 watchlist = load_watchlist()
@@ -654,6 +820,10 @@ st.sidebar.download_button("Download standaard-watchlist", DEFAULT_WATCHLIST.to_
 st.caption(f"Laatst geladen: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
 st.warning("Deze tool geeft geen persoonlijk financieel advies. Scores zijn automatisch gegenereerd op basis van openbare data, nieuwswoorden, koersdata, volume en kosteninstellingen.")
 st.caption("Snelheidsmodus: koersdata en nieuws worden tijdelijk gecachet. Gebruik links 'Nu data verversen' als je alles opnieuw wilt ophalen.")
+if st.session_state.get("logged_in_user"):
+    st.success(f"Account actief: je watchlist en oefenportfolio worden opgeslagen voor {st.session_state.logged_in_user}.")
+else:
+    st.info("Je bent niet ingelogd. Maak links een account aan om je oefenportfolio en watchlist te bewaren.")
 
 required_cols = {"ticker", "naam", "sector", "keywords", "sector_score"}
 missing = required_cols - set(watchlist.columns)
@@ -743,7 +913,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", filtered.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v5_4.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", filtered.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v6.csv", "text/csv")
 
 with tab2:
     st.subheader("Mobiele kaartweergave")
@@ -895,7 +1065,10 @@ with tab6:
 
     init_paper_portfolio()
 
-    st.info("Je oefenportfolio wordt nu ook in de URL opgeslagen. Bookmark of kopieer de link als je je voortgang wilt bewaren na refresh.")
+    if st.session_state.get("logged_in_user"):
+        st.success("Je oefenportfolio wordt automatisch opgeslagen in je account.")
+    else:
+        st.info("Niet ingelogd: je oefenportfolio wordt alleen in je sessie/URL opgeslagen. Log in om je voortgang echt te bewaren.")
 
     with st.expander("💾 Oefenportfolio bewaren / laden", expanded=False):
         save_payload = {
@@ -917,6 +1090,7 @@ with tab6:
                 positions = loaded.get("positions", [])
                 st.session_state.paper_positions = positions if isinstance(positions, list) else []
                 persist_paper_to_url()
+                save_current_user_state()
                 st.success("Oefenportfolio geladen.")
             except Exception as e:
                 st.error(f"Kon savebestand niet laden: {e}")
@@ -933,11 +1107,13 @@ with tab6:
             st.session_state.paper_cash = 10000.0
             st.session_state.paper_positions = []
             persist_paper_to_url()
+            save_current_user_state()
             st.success("Oefenportfolio gereset naar €10.000 cash.")
 
     if not st.session_state.paper_positions and start_cash != st.session_state.paper_cash:
         st.session_state.paper_cash = start_cash
         persist_paper_to_url()
+        save_current_user_state()
 
     st.write("### Virtueel kopen")
     buy_cols = st.columns([2, 1, 1])
@@ -1020,7 +1196,7 @@ with tab6:
 
         st.download_button("Download oefenportfolio", positions_df.to_csv(index=False), "oefenportfolio.csv", "text/csv")
 
-    st.caption("Je oefenportfolio wordt opgeslagen in je sessie én in de URL. Voor extra zekerheid kun je ook een savebestand downloaden.")
+    st.caption("Ingelogd? Dan wordt je oefenportfolio opgeslagen in Supabase. Niet ingelogd? Gebruik de link of download een savebestand.")
 
 
 with tab7:

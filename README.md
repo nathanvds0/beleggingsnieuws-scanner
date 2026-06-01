@@ -1,11 +1,16 @@
-# BelegRadar v5.4
+# BelegRadar v6
 
-Fix:
-- Oefenportfolio blijft beter bewaard na refresh
-- Posities en cash worden in de URL opgeslagen
-- Je kunt een savebestand downloaden en later uploaden
-- Virtueel kopen/verkopen blijft behouden
+Nieuw:
+- Account maken
+- Inloggen / uitloggen
+- Oefenportfolio automatisch opslaan in Supabase
+- Watchlist automatisch opslaan per gebruiker
+- Portfolio laden wanneer je opnieuw inlogt
+- Savebestand en URL-backup blijven behouden
 
-Tip: bookmark of kopieer de URL nadat je posities hebt toegevoegd.
+Belangrijk:
+Zet in Streamlit Secrets:
+SUPABASE_URL = "https://jouw-project.supabase.co"
+SUPABASE_KEY = "jouw-publishable-key"
 
 Geen financieel advies. Prijzen, kosten en scores zijn schattingen.
