@@ -30,11 +30,22 @@ if auto_refresh:
 st.caption(f"Laatst geladen: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
 
 DEFAULT_WATCHLIST = pd.DataFrame([
-    {"ticker":"NVDA","naam":"NVIDIA","sector":"AI / Semiconductors","keywords":"earnings,guidance,AI chip,demand,upgrade,partnership","sector_score":2},
-    {"ticker":"ASML.AS","naam":"ASML","sector":"Semiconductors","keywords":"earnings,guidance,EUV,chip demand,China,orders","sector_score":2},
-    {"ticker":"MSFT","naam":"Microsoft","sector":"AI / Cloud","keywords":"earnings,Azure,AI,Copilot,guidance,partnership","sector_score":2},
-    {"ticker":"BTC-USD","naam":"Bitcoin","sector":"Crypto","keywords":"ETF inflows,halving,regulation,institutional,rate cuts","sector_score":1},
-    {"ticker":"ETH-USD","naam":"Ethereum","sector":"Crypto","keywords":"ETF,upgrade,staking,DeFi,regulation","sector_score":1},
+  DEFAULT_WATCHLIST = pd.DataFrame([
+    {"ticker":"IBM","naam":"IBM","sector":"AI / Cloud / Enterprise software","keywords":"earnings,guidance,AI,watsonx,cloud,mainframe,consulting,dividend,upgrade,partnership","sector_score":1},
+    {"ticker":"INTC","naam":"Intel","sector":"Semiconductors / Foundry","keywords":"earnings,guidance,foundry,AI chip,datacenter,manufacturing,CHIPS Act,upgrade,partnership","sector_score":1},
+    {"ticker":"ELI.BR","naam":"Elia Group","sector":"Utilities / Electricity grid","keywords":"earnings,guidance,grid investment,electricity transmission,renewables,energy transition,capex,dividend,regulation","sector_score":1},
+    {"ticker":"AED.BR","naam":"Aedifica","sector":"Healthcare real estate / REIT","keywords":"earnings,guidance,healthcare real estate,elderly care,occupancy,dividend,interest rates,portfolio,valuation","sector_score":1},
+    {"ticker":"MC.PA","naam":"LVMH","sector":"Luxury goods","keywords":"earnings,guidance,luxury,China demand,pricing power,margin,brands,Fashion,upgrade","sector_score":1},
+
+    {"ticker":"ASML.AS","naam":"ASML","sector":"Semiconductor equipment","keywords":"earnings,guidance,EUV,High-NA,orders,chip demand,AI chips,China,upgrade","sector_score":2},
+    {"ticker":"MSFT","naam":"Microsoft","sector":"AI / Cloud","keywords":"earnings,guidance,Azure,AI,Copilot,cloud,OpenAI,datacenter,upgrade","sector_score":2},
+    {"ticker":"GOOGL","naam":"Alphabet","sector":"AI / Advertising / Cloud","keywords":"earnings,guidance,AI,Gemini,cloud,advertising,YouTube,upgrade","sector_score":2},
+    {"ticker":"AMZN","naam":"Amazon","sector":"E-commerce / Cloud / AI","keywords":"earnings,guidance,AWS,AI,retail,margin,cloud,advertising,upgrade","sector_score":2},
+    {"ticker":"AMD","naam":"AMD","sector":"Semiconductors / AI chips","keywords":"earnings,guidance,AI chip,GPU,datacenter,MI300,MI400,server,upgrade","sector_score":2},
+    {"ticker":"AVGO","naam":"Broadcom","sector":"Semiconductors / AI infrastructure","keywords":"earnings,guidance,AI chip,custom silicon,datacenter,VMware,networking,upgrade,partnership","sector_score":2},
+    {"ticker":"TSM","naam":"Taiwan Semiconductor","sector":"Semiconductor foundry","keywords":"earnings,guidance,AI chips,foundry,advanced nodes,Apple,NVIDIA,capex,upgrade","sector_score":2},
+    {"ticker":"NVDA","naam":"NVIDIA","sector":"AI / Semiconductors","keywords":"earnings,guidance,AI chip,GPU,datacenter,Blackwell,CUDA,upgrade,demand","sector_score":2},
+    {"ticker":"PLTR","naam":"Palantir","sector":"AI software / Data analytics","keywords":"earnings,guidance,AI,AIP,government contracts,commercial growth,defense,upgrade","sector_score":2},
 ])
 
 CATALYST_WORDS = [
