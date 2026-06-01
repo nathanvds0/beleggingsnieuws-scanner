@@ -1,6 +1,15 @@
 ticker,naam,sector,keywords,sector_score
-NVDA,NVIDIA,AI / Semiconductors,"earnings,guidance,AI chip,demand,upgrade,partnership",2
-ASML.AS,ASML,Semiconductors,"earnings,guidance,EUV,chip demand,China,orders",2
-MSFT,Microsoft,AI / Cloud,"earnings,Azure,AI,Copilot,guidance,partnership",2
-BTC-USD,Bitcoin,Crypto,"ETF inflows,halving,regulation,institutional,rate cuts",1
-ETH-USD,Ethereum,Crypto,"ETF,upgrade,staking,DeFi,regulation",1
+IBM,IBM,AI / Cloud / Enterprise software,"earnings,guidance,AI,watsonx,cloud,mainframe,consulting,dividend,upgrade,partnership",1
+INTC,Intel,Semiconductors / Foundry,"earnings,guidance,foundry,AI chip,datacenter,manufacturing,CHIPS Act,upgrade,partnership",1
+ELI.BR,Elia Group,Utilities / Electricity grid,"earnings,guidance,grid investment,electricity transmission,renewables,energy transition,capex,dividend,regulation",1
+AED.BR,Aedifica,Healthcare real estate / REIT,"earnings,guidance,healthcare real estate,elderly care,occupancy,dividend,interest rates,portfolio,valuation",1
+MC.PA,LVMH,Luxury goods,"earnings,guidance,luxury,China demand,pricing power,margin,brands,Fashion,upgrade",1
+ASML.AS,ASML,Semiconductor equipment,"earnings,guidance,EUV,High-NA,orders,chip demand,AI chips,China,upgrade",2
+MSFT,Microsoft,AI / Cloud,"earnings,guidance,Azure,AI,Copilot,cloud,OpenAI,datacenter,upgrade",2
+GOOGL,Alphabet,AI / Advertising / Cloud,"earnings,guidance,AI,Gemini,cloud,advertising,YouTube,upgrade",2
+AMZN,Amazon,E-commerce / Cloud / AI,"earnings,guidance,AWS,AI,retail,margin,cloud,advertising,upgrade",2
+AMD,AMD,Semiconductors / AI chips,"earnings,guidance,AI chip,GPU,datacenter,MI300,MI400,server,upgrade",2
+AVGO,Broadcom,Semiconductors / AI infrastructure,"earnings,guidance,AI chip,custom silicon,datacenter,VMware,networking,upgrade,partnership",2
+TSM,Taiwan Semiconductor,Semiconductor foundry,"earnings,guidance,AI chips,foundry,advanced nodes,Apple,NVIDIA,capex,upgrade",2
+NVDA,NVIDIA,AI / Semiconductors,"earnings,guidance,AI chip,GPU,datacenter,Blackwell,CUDA,upgrade,demand",2
+PLTR,Palantir,AI software / Data analytics,"earnings,guidance,AI,AIP,government contracts,commercial growth,defense,upgrade",2

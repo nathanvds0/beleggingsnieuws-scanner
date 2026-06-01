@@ -5,10 +5,70 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="Beleggingsnieuws Scanner v3", layout="wide")
+st.set_page_config(page_title="BelegRadar v4", page_icon="📈", layout="wide")
 
-st.title("📈 Beleggingsnieuws Scanner v3")
-st.caption("Automatische beoordeling + nieuws + koers/volume. Geen financieel advies.")
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 1.5rem;
+}
+.hero {
+    background: linear-gradient(135deg, #111827, #1f2937);
+    color: white;
+    padding: 32px;
+    border-radius: 22px;
+    margin-bottom: 22px;
+}
+.hero h1 {
+    font-size: 46px;
+    margin-bottom: 6px;
+}
+.hero p {
+    font-size: 17px;
+    color: #d1d5db;
+    margin-bottom: 4px;
+}
+.card {
+    background: #ffffff;
+    padding: 18px 20px;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    margin-bottom: 14px;
+}
+.small-muted {
+    color: #6b7280;
+    font-size: 14px;
+}
+.badge {
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-weight: 800;
+    display: inline-block;
+    font-size: 13px;
+}
+.badge-green { background-color: #dcfce7; color: #166534; }
+.badge-yellow { background-color: #fef9c3; color: #854d0e; }
+.badge-orange { background-color: #ffedd5; color: #9a3412; }
+.badge-red { background-color: #fee2e2; color: #991b1b; }
+.badge-blue { background-color: #dbeafe; color: #1e40af; }
+.badge-gray { background-color: #f3f4f6; color: #374151; }
+.metric-box {
+    background: white;
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="hero">
+    <h1>📈 BelegRadar</h1>
+    <p>Scan aandelen op nieuws, momentum, volume en automatische research-signalen.</p>
+    <p><strong>Geen financieel advies — alleen een hulpmiddel om sneller interessante beleggingen te vinden.</strong></p>
+</div>
+""", unsafe_allow_html=True)
 
 st.sidebar.header("Auto-refresh")
 auto_refresh = st.sidebar.toggle("Automatisch verversen", value=True)
@@ -35,7 +95,6 @@ DEFAULT_WATCHLIST = pd.DataFrame([
     {"ticker":"ELI.BR","naam":"Elia Group","sector":"Utilities / Electricity grid","keywords":"earnings,guidance,grid investment,electricity transmission,renewables,energy transition,capex,dividend,regulation","sector_score":1},
     {"ticker":"AED.BR","naam":"Aedifica","sector":"Healthcare real estate / REIT","keywords":"earnings,guidance,healthcare real estate,elderly care,occupancy,dividend,interest rates,portfolio,valuation","sector_score":1},
     {"ticker":"MC.PA","naam":"LVMH","sector":"Luxury goods","keywords":"earnings,guidance,luxury,China demand,pricing power,margin,brands,Fashion,upgrade","sector_score":1},
-
     {"ticker":"ASML.AS","naam":"ASML","sector":"Semiconductor equipment","keywords":"earnings,guidance,EUV,High-NA,orders,chip demand,AI chips,China,upgrade","sector_score":2},
     {"ticker":"MSFT","naam":"Microsoft","sector":"AI / Cloud","keywords":"earnings,guidance,Azure,AI,Copilot,cloud,OpenAI,datacenter,upgrade","sector_score":2},
     {"ticker":"GOOGL","naam":"Alphabet","sector":"AI / Advertising / Cloud","keywords":"earnings,guidance,AI,Gemini,cloud,advertising,YouTube,upgrade","sector_score":2},
@@ -46,6 +105,7 @@ DEFAULT_WATCHLIST = pd.DataFrame([
     {"ticker":"NVDA","naam":"NVIDIA","sector":"AI / Semiconductors","keywords":"earnings,guidance,AI chip,GPU,datacenter,Blackwell,CUDA,upgrade,demand","sector_score":2},
     {"ticker":"PLTR","naam":"Palantir","sector":"AI software / Data analytics","keywords":"earnings,guidance,AI,AIP,government contracts,commercial growth,defense,upgrade","sector_score":2},
 ])
+
 CATALYST_WORDS = [
     "earnings","guidance","upgrade","partnership","contract","approval","acquisition","merger",
     "record revenue","beat expectations","raises outlook","ETF inflows","rate cut","FDA approval",
@@ -55,6 +115,18 @@ NEGATIVE_WORDS = [
     "downgrade","misses","lawsuit","investigation","cuts outlook","decline","falls","warning",
     "delay","ban","regulatory probe","sell rating","underperform","fraud","fine","weak demand"
 ]
+
+def action_badge(action):
+    classes = {
+        "KOOP-KANDIDAAT": "badge-green",
+        "SERIEUS ANALYSEREN": "badge-yellow",
+        "WACHT OP VOLUME": "badge-orange",
+        "WATCHLIST": "badge-blue",
+        "ALLEEN VOLGEN": "badge-gray",
+        "VERMIJDEN": "badge-red",
+        "OPPASSEN": "badge-orange",
+    }
+    return f'<span class="badge {classes.get(action, "badge-gray")}">{action}</span>'
 
 def load_watchlist():
     uploaded = st.sidebar.file_uploader("Upload je eigen watchlist CSV", type=["csv"])
@@ -153,15 +225,6 @@ def risk_reward_score(pct_7d, pct_30d, volume_ratio):
         return 1
     return 1
 
-def setup_label(score):
-    if score >= 8:
-        return "Sterke setup"
-    if score >= 6:
-        return "Interessant"
-    if score >= 4:
-        return "Alleen volgen"
-    return "Negeren"
-
 def automatic_decision(total, catalyst_score, price_score, volume_score, rr_score, negative_hits, pct_7d, volume_ratio):
     reasons, warnings = [], []
     if negative_hits:
@@ -176,7 +239,6 @@ def automatic_decision(total, catalyst_score, price_score, volume_score, rr_scor
     reasons.append("Sterke katalysator-score." if catalyst_score >= 2 else "Mogelijke katalysator, maar niet supersterk." if catalyst_score == 1 else "Geen duidelijke katalysator gevonden.")
     reasons.append("Koerstrend is positief." if price_score >= 2 else "Koerstrend is redelijk." if price_score == 1 else "Koerstrend is zwak of onduidelijk.")
     reasons.append("Volume bevestigt sterk." if volume_score >= 2 else "Volume bevestigt licht." if volume_score == 1 else "Volume bevestigt niet.")
-
     warning_text = " ".join(warnings) if warnings else "Geen grote waarschuwingen gevonden."
 
     if total >= 8 and catalyst_score >= 1 and price_score >= 1 and volume_score >= 1 and rr_score >= 1 and not negative_hits:
@@ -212,7 +274,7 @@ if missing:
 st.sidebar.header("Instellingen")
 max_news = st.sidebar.slider("Nieuwsberichten per asset", 3, 15, 8)
 extra_query = st.sidebar.text_input("Extra zoekterm", value="stock news")
-st.sidebar.download_button("Download voorbeeld-watchlist", DEFAULT_WATCHLIST.to_csv(index=False), file_name="watchlist_template.csv", mime="text/csv")
+st.sidebar.download_button("Download standaard-watchlist", DEFAULT_WATCHLIST.to_csv(index=False), file_name="watchlist_template.csv", mime="text/csv")
 
 results = []
 with st.spinner("Laatste nieuws en koersdata ophalen..."):
@@ -230,10 +292,9 @@ with st.spinner("Laatste nieuws en koersdata ophalen..."):
         action, decision, reasons, warnings = automatic_decision(total, ns["catalyst_score"], pv["price_score"], pv["volume_score"], rr_score, ns["negative_hits"], pv["pct_7d"], pv["volume_ratio"])
         results.append({
             "Ticker": ticker, "Naam": name, "Sector": sector, "Actie": action, "Beoordeling": decision,
-            "Totaalscore": total, "Label": setup_label(total), "Sector-score": sector_score,
-            "Katalysator-score": ns["catalyst_score"], "Koers-score": pv["price_score"], "Volume-score": pv["volume_score"],
-            "Risk/reward-score": rr_score, "Trend": pv["trend"],
-            "7d %": None if pv["pct_7d"] is None else round(pv["pct_7d"], 2),
+            "Totaalscore": total, "Sector-score": sector_score, "Katalysator-score": ns["catalyst_score"],
+            "Koers-score": pv["price_score"], "Volume-score": pv["volume_score"], "Risk/reward-score": rr_score,
+            "Trend": pv["trend"], "7d %": None if pv["pct_7d"] is None else round(pv["pct_7d"], 2),
             "30d %": None if pv["pct_30d"] is None else round(pv["pct_30d"], 2),
             "Volume ratio": None if pv["volume_ratio"] is None else round(pv["volume_ratio"], 2),
             "Laatste koers": None if pv["last_close"] is None else round(pv["last_close"], 2),
@@ -246,65 +307,104 @@ with st.spinner("Laatste nieuws en koersdata ophalen..."):
 
 df = pd.DataFrame(results).sort_values(["Totaalscore", "Volume-score", "Koers-score"], ascending=False)
 
-st.subheader("Automatische beoordeling")
-st.dataframe(df[["Ticker","Naam","Actie","Totaalscore","Beoordeling","7d %","30d %","Volume ratio","Trend"]], use_container_width=True, hide_index=True)
+best = df.iloc[0] if not df.empty else None
+col1, col2, col3 = st.columns(3)
+col1.metric("Gescand", len(df))
+col2.metric("Beste score", "n.v.t." if best is None else f"{best['Ticker']} — {best['Totaalscore']}/10")
+col3.metric("Sterke kandidaten", int(df["Actie"].isin(["KOOP-KANDIDAAT", "SERIEUS ANALYSEREN", "WACHT OP VOLUME"]).sum()))
 
-st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v3.csv", "text/csv")
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Overzicht", "🔥 Top-kandidaten", "📰 Details & nieuws", "ℹ️ Uitleg"])
 
-st.subheader("Top-kandidaten")
-top = df[df["Actie"].isin(["KOOP-KANDIDAAT", "SERIEUS ANALYSEREN", "WACHT OP VOLUME"])]
-if top.empty:
-    st.info("Geen sterke kandidaten gevonden volgens deze scan.")
-else:
-    for _, row in top.iterrows():
-        st.write(f"**{row['Ticker']} — {row['Naam']}**")
-        st.write(f"Actie: **{row['Actie']}** | Score: **{row['Totaalscore']}/10**")
-        st.write(row["Beoordeling"])
-        st.write(f"Waarschuwing: {row['Waarschuwingen']}")
-        st.divider()
+with tab1:
+    st.subheader("Automatische beoordeling")
+    st.dataframe(
+        df[["Ticker","Naam","Actie","Totaalscore","Beoordeling","7d %","30d %","Volume ratio","Trend"]],
+        use_container_width=True,
+        hide_index=True
+    )
+    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4.csv", "text/csv")
 
-st.subheader("Details per asset")
-for item in results:
-    with st.expander(f"{item['Ticker']} — {item['Naam']} — {item['Actie']} — score {item['Totaalscore']}/10"):
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Totaalscore", f"{item['Totaalscore']}/10")
-        c2.metric("7 dagen", "n.v.t." if item["7d %"] is None else f"{item['7d %']}%")
-        c3.metric("30 dagen", "n.v.t." if item["30d %"] is None else f"{item['30d %']}%")
-        c4.metric("Volume ratio", "n.v.t." if item["Volume ratio"] is None else f"{item['Volume ratio']}x")
-        st.write("### Automatische beoordeling")
-        st.write(f"**Actie:** {item['Actie']}")
-        st.write(f"**Beoordeling:** {item['Beoordeling']}")
-        st.write(f"**Waarom:** {item['Redenen']}")
-        st.write(f"**Waarschuwingen:** {item['Waarschuwingen']}")
-        st.write(f"**Positie-regel:** {item['Positie-regel']}")
-        st.write("### Data")
-        st.write("**Sector:**", item["Sector"])
-        st.write("**Trend:**", item["Trend"])
-        st.write("**Laatste koers:**", item["Laatste koers"])
-        st.write("**SMA20:**", item["SMA20"])
-        st.write("**SMA50:**", item["SMA50"])
-        st.write("**Catalyst hits:**", item["Catalyst hits"] or "Geen")
-        st.write("**Keyword hits:**", item["Keyword hits"] or "Geen")
-        st.write("**Negatieve signalen:**", item["Negatief nieuws"] or "Geen")
-        st.write("### Recent nieuws")
-        if item["Nieuws"]:
-            for n in item["Nieuws"]:
-                st.markdown(f"- [{n['title']}]({n['link']})  \\n  _{n['published']}_")
-        else:
-            st.write("Geen nieuws gevonden.")
+with tab2:
+    st.subheader("Top 3 volgens BelegRadar")
+    top3 = df.head(3)
+    for i, row in top3.iterrows():
+        st.markdown(f"""
+        <div class="card">
+            <h3>{row['Ticker']} — {row['Naam']}</h3>
+            {action_badge(row['Actie'])}
+            <p><strong>Score:</strong> {row['Totaalscore']}/10</p>
+            <p>{row['Beoordeling']}</p>
+            <p class="small-muted"><strong>Waarschuwing:</strong> {row['Waarschuwingen']}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-st.divider()
-st.write("""
-### Auto-refresh
-Als auto-refresh aanstaat, laadt de website zichzelf opnieuw na het gekozen aantal minuten.
-Bij elke herlaadbeurt worden nieuws en koersdata opnieuw opgehaald.
+    st.subheader("Alle sterke kandidaten")
+    top = df[df["Actie"].isin(["KOOP-KANDIDAAT", "SERIEUS ANALYSEREN", "WACHT OP VOLUME"])]
+    if top.empty:
+        st.info("Geen sterke kandidaten gevonden volgens deze scan.")
+    else:
+        for _, row in top.iterrows():
+            st.markdown(f"""
+            <div class="card">
+                <strong>{row['Ticker']} — {row['Naam']}</strong><br>
+                {action_badge(row['Actie'])}
+                <p><strong>Score:</strong> {row['Totaalscore']}/10</p>
+                <p>{row['Beoordeling']}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-### Belangrijke waarschuwing
-Dit dashboard is een scanner en beoordelingssysteem. Het is geen financieel adviseur.
-Gebruik het om kandidaten te vinden, niet om blind te kopen.
+with tab3:
+    st.subheader("Details per belegging")
+    for item in results:
+        with st.expander(f"{item['Ticker']} — {item['Naam']} — {item['Actie']} — score {item['Totaalscore']}/10"):
+            st.markdown(action_badge(item["Actie"]), unsafe_allow_html=True)
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Totaalscore", f"{item['Totaalscore']}/10")
+            c2.metric("7 dagen", "n.v.t." if item["7d %"] is None else f"{item['7d %']}%")
+            c3.metric("30 dagen", "n.v.t." if item["30d %"] is None else f"{item['30d %']}%")
+            c4.metric("Volume ratio", "n.v.t." if item["Volume ratio"] is None else f"{item['Volume ratio']}x")
 
-- **KOOP-KANDIDAAT** = verder onderzoeken en alleen kopen met plan.
-- **WACHT OP VOLUME** = nog niet haasten.
-- **WATCHLIST / ALLEEN VOLGEN** = niet kopen volgens deze scan.
-- **VERMIJDEN** = overslaan.
-""")
+            st.write("### Automatische beoordeling")
+            st.write(f"**Beoordeling:** {item['Beoordeling']}")
+            st.write(f"**Waarom:** {item['Redenen']}")
+            st.write(f"**Waarschuwingen:** {item['Waarschuwingen']}")
+            st.write(f"**Positie-regel:** {item['Positie-regel']}")
+
+            st.write("### Data")
+            st.write("**Sector:**", item["Sector"])
+            st.write("**Trend:**", item["Trend"])
+            st.write("**Laatste koers:**", item["Laatste koers"])
+            st.write("**SMA20:**", item["SMA20"])
+            st.write("**SMA50:**", item["SMA50"])
+            st.write("**Catalyst hits:**", item["Catalyst hits"] or "Geen")
+            st.write("**Keyword hits:**", item["Keyword hits"] or "Geen")
+            st.write("**Negatieve signalen:**", item["Negatief nieuws"] or "Geen")
+
+            st.write("### Recent nieuws")
+            if item["Nieuws"]:
+                for n in item["Nieuws"]:
+                    st.markdown(f"- [{n['title']}]({n['link']})  \\n  _{n['published']}_")
+            else:
+                st.write("Geen nieuws gevonden.")
+
+with tab4:
+    st.subheader("Hoe de score werkt")
+    st.write("""
+    De score loopt van 0 tot 10 en kijkt naar vijf onderdelen:
+
+    - Sector-score: zit het aandeel in een sterke of interessante sector?
+    - Katalysator-score: is er relevant nieuws of zijn er belangrijke keywords?
+    - Koers-score: staat de koers boven belangrijke gemiddelden?
+    - Volume-score: bevestigt het volume de beweging?
+    - Risk/reward-score: is de beweging niet al te ver doorgeschoten?
+
+    Betekenis van acties:
+
+    - KOOP-KANDIDAAT: sterk research-signaal, maar nog steeds zelf controleren.
+    - SERIEUS ANALYSEREN: interessant, maar geen automatische koop.
+    - WACHT OP VOLUME: score goed, maar volume bevestigt nog niet.
+    - WATCHLIST: volgen.
+    - ALLEEN VOLGEN: nog zwak.
+    - VERMIJDEN: overslaan volgens deze scan.
+    """)
+    st.warning("Dit dashboard is geen financieel adviseur. Gebruik het om kandidaten te vinden, niet om blind te kopen.")
