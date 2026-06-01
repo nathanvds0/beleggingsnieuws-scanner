@@ -3,10 +3,31 @@ import pandas as pd
 import yfinance as yf
 import feedparser
 from urllib.parse import quote_plus
+from datetime import datetime
 
-st.set_page_config(page_title="Beleggingsnieuws Scanner v2", layout="wide")
-st.title("📈 Beleggingsnieuws Scanner v2")
+st.set_page_config(page_title="Beleggingsnieuws Scanner v3", layout="wide")
+
+st.title("📈 Beleggingsnieuws Scanner v3")
 st.caption("Automatische beoordeling + nieuws + koers/volume. Geen financieel advies.")
+
+st.sidebar.header("Auto-refresh")
+auto_refresh = st.sidebar.toggle("Automatisch verversen", value=True)
+refresh_minutes = st.sidebar.selectbox("Ververs elke", [5, 10, 15, 30, 60], index=2)
+
+if auto_refresh:
+    refresh_ms = refresh_minutes * 60 * 1000
+    st.markdown(
+        f"""
+        <script>
+            setTimeout(function() {{
+                window.location.reload();
+            }}, {refresh_ms});
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
+
+st.caption(f"Laatst geladen: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
 
 DEFAULT_WATCHLIST = pd.DataFrame([
     {"ticker":"NVDA","naam":"NVIDIA","sector":"AI / Semiconductors","keywords":"earnings,guidance,AI chip,demand,upgrade,partnership","sector_score":2},
@@ -73,13 +94,17 @@ def score_price_volume(data):
     volume_ratio = last_vol / avg_vol20 if last_vol and avg_vol20 else None
 
     price_score = 0
-    if last_close and sma20 and last_close > sma20: price_score += 1
-    if last_close and sma50 and last_close > sma50: price_score += 1
+    if last_close and sma20 and last_close > sma20:
+        price_score += 1
+    if last_close and sma50 and last_close > sma50:
+        price_score += 1
 
     volume_score = 0
     if volume_ratio is not None:
-        if volume_ratio > 1.5: volume_score = 2
-        elif volume_ratio > 1.1: volume_score = 1
+        if volume_ratio > 1.5:
+            volume_score = 2
+        elif volume_ratio > 1.1:
+            volume_score = 1
 
     if last_close and sma20 and sma50:
         if last_close > sma20 and last_close > sma50:
@@ -120,33 +145,42 @@ def risk_reward_score(pct_7d, pct_30d, volume_ratio):
     return 1
 
 def setup_label(score):
-    if score >= 8: return "Sterke setup"
-    if score >= 6: return "Interessant"
-    if score >= 4: return "Alleen volgen"
+    if score >= 8:
+        return "Sterke setup"
+    if score >= 6:
+        return "Interessant"
+    if score >= 4:
+        return "Alleen volgen"
     return "Negeren"
 
 def automatic_decision(total, catalyst_score, price_score, volume_score, rr_score, negative_hits, pct_7d, volume_ratio):
     reasons, warnings = [], []
-    if negative_hits: warnings.append("Er zijn negatieve woorden in het nieuws gevonden.")
-    if volume_ratio is not None and volume_ratio < 1.0: warnings.append("Volume is lager dan normaal; bevestiging is zwak.")
-    if pct_7d is not None and pct_7d > 15: warnings.append("Koers is al hard gestegen; kans op pullback is groter.")
-    if rr_score == 0: warnings.append("Risk/reward is zwak door overextensie of onvoldoende data.")
+    if negative_hits:
+        warnings.append("Er zijn negatieve woorden in het nieuws gevonden.")
+    if volume_ratio is not None and volume_ratio < 1.0:
+        warnings.append("Volume is lager dan normaal; bevestiging is zwak.")
+    if pct_7d is not None and pct_7d > 15:
+        warnings.append("Koers is al hard gestegen; kans op pullback is groter.")
+    if rr_score == 0:
+        warnings.append("Risk/reward is zwak door overextensie of onvoldoende data.")
 
     reasons.append("Sterke katalysator-score." if catalyst_score >= 2 else "Mogelijke katalysator, maar niet supersterk." if catalyst_score == 1 else "Geen duidelijke katalysator gevonden.")
     reasons.append("Koerstrend is positief." if price_score >= 2 else "Koerstrend is redelijk." if price_score == 1 else "Koerstrend is zwak of onduidelijk.")
     reasons.append("Volume bevestigt sterk." if volume_score >= 2 else "Volume bevestigt licht." if volume_score == 1 else "Volume bevestigt niet.")
 
+    warning_text = " ".join(warnings) if warnings else "Geen grote waarschuwingen gevonden."
+
     if total >= 8 and catalyst_score >= 1 and price_score >= 1 and volume_score >= 1 and rr_score >= 1 and not negative_hits:
-        return "KOOP-KANDIDAAT", "Koop-kandidaat voor verder onderzoek. Alleen kopen met instap, stop-loss en maximale positie.", " ".join(reasons), " ".join(warnings) if warnings else "Geen grote waarschuwingen gevonden."
+        return "KOOP-KANDIDAAT", "Koop-kandidaat voor verder onderzoek. Alleen kopen met instap, stop-loss en maximale positie.", " ".join(reasons), warning_text
     if total >= 8 and volume_score == 0:
-        return "WACHT OP VOLUME", "Sterke score, maar wacht liever op hoger volume voordat je koopt.", " ".join(reasons), " ".join(warnings) if warnings else "Geen grote waarschuwingen gevonden."
+        return "WACHT OP VOLUME", "Sterke score, maar wacht liever op hoger volume voordat je koopt.", " ".join(reasons), warning_text
     if total >= 7 and rr_score >= 1 and not negative_hits:
-        return "SERIEUS ANALYSEREN", "Interessant genoeg om serieus te analyseren, maar nog geen automatische koop.", " ".join(reasons), " ".join(warnings) if warnings else "Geen grote waarschuwingen gevonden."
+        return "SERIEUS ANALYSEREN", "Interessant genoeg om serieus te analyseren, maar nog geen automatische koop.", " ".join(reasons), warning_text
     if total >= 6:
-        return "WATCHLIST", "Zet op je watchlist. Wacht op betere bevestiging.", " ".join(reasons), " ".join(warnings) if warnings else "Geen grote waarschuwingen gevonden."
+        return "WATCHLIST", "Zet op je watchlist. Wacht op betere bevestiging.", " ".join(reasons), warning_text
     if total >= 4:
-        return "ALLEEN VOLGEN", "Volgen, maar nu niet sterk genoeg om te kopen.", " ".join(reasons), " ".join(warnings) if warnings else "Geen grote waarschuwingen gevonden."
-    return "VERMIJDEN", "Niet interessant volgens deze scan.", " ".join(reasons), " ".join(warnings) if warnings else "Geen grote waarschuwingen gevonden."
+        return "ALLEEN VOLGEN", "Volgen, maar nu niet sterk genoeg om te kopen.", " ".join(reasons), warning_text
+    return "VERMIJDEN", "Niet interessant volgens deze scan.", " ".join(reasons), warning_text
 
 def position_suggestion(action):
     if action == "KOOP-KANDIDAAT":
@@ -172,14 +206,16 @@ extra_query = st.sidebar.text_input("Extra zoekterm", value="stock news")
 st.sidebar.download_button("Download voorbeeld-watchlist", DEFAULT_WATCHLIST.to_csv(index=False), file_name="watchlist_template.csv", mime="text/csv")
 
 results = []
-with st.spinner("Data ophalen en beoordelen..."):
+with st.spinner("Laatste nieuws en koersdata ophalen..."):
     for _, row in watchlist.iterrows():
         ticker, name, sector, keywords = str(row["ticker"]).strip(), str(row["naam"]).strip(), str(row["sector"]).strip(), str(row["keywords"]).strip()
         news = google_news(f"{name} {ticker} {extra_query}", max_items=max_news)
         pv = score_price_volume(get_price_data(ticker))
         ns = score_news(news, keywords)
-        try: sector_score = max(0, min(int(row["sector_score"]), 2))
-        except Exception: sector_score = 0
+        try:
+            sector_score = max(0, min(int(row["sector_score"]), 2))
+        except Exception:
+            sector_score = 0
         rr_score = risk_reward_score(pv["pct_7d"], pv["pct_30d"], pv["volume_ratio"])
         total = sector_score + ns["catalyst_score"] + pv["price_score"] + pv["volume_score"] + rr_score
         action, decision, reasons, warnings = automatic_decision(total, ns["catalyst_score"], pv["price_score"], pv["volume_score"], rr_score, ns["negative_hits"], pv["pct_7d"], pv["volume_ratio"])
@@ -204,7 +240,7 @@ df = pd.DataFrame(results).sort_values(["Totaalscore", "Volume-score", "Koers-sc
 st.subheader("Automatische beoordeling")
 st.dataframe(df[["Ticker","Naam","Actie","Totaalscore","Beoordeling","7d %","30d %","Volume ratio","Trend"]], use_container_width=True, hide_index=True)
 
-st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v2.csv", "text/csv")
+st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v3.csv", "text/csv")
 
 st.subheader("Top-kandidaten")
 top = df[df["Actie"].isin(["KOOP-KANDIDAAT", "SERIEUS ANALYSEREN", "WACHT OP VOLUME"])]
@@ -242,11 +278,18 @@ for item in results:
         st.write("**Keyword hits:**", item["Keyword hits"] or "Geen")
         st.write("**Negatieve signalen:**", item["Negatief nieuws"] or "Geen")
         st.write("### Recent nieuws")
-        for n in item["Nieuws"]:
-            st.markdown(f"- [{n['title']}]({n['link']})  \n  _{n['published']}_")
+        if item["Nieuws"]:
+            for n in item["Nieuws"]:
+                st.markdown(f"- [{n['title']}]({n['link']})  \\n  _{n['published']}_")
+        else:
+            st.write("Geen nieuws gevonden.")
 
 st.divider()
 st.write("""
+### Auto-refresh
+Als auto-refresh aanstaat, laadt de website zichzelf opnieuw na het gekozen aantal minuten.
+Bij elke herlaadbeurt worden nieuws en koersdata opnieuw opgehaald.
+
 ### Belangrijke waarschuwing
 Dit dashboard is een scanner en beoordelingssysteem. Het is geen financieel adviseur.
 Gebruik het om kandidaten te vinden, niet om blind te kopen.

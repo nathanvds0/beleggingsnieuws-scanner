@@ -1,32 +1,21 @@
-# Beleggingsnieuws Scanner v2
+# Beleggingsnieuws Scanner v3
 
-Deze versie voegt automatische beoordelingen toe:
+Deze versie heeft automatische refresh.
 
-- KOOP-KANDIDAAT
-- SERIEUS ANALYSEREN
-- WACHT OP VOLUME
-- WATCHLIST
-- ALLEEN VOLGEN
-- VERMIJDEN
+## Nieuw in v3
 
-## Installeren
+- Auto-refresh aan/uit via de sidebar
+- Zelf kiezen: elke 5, 10, 15, 30 of 60 minuten verversen
+- Laatst geladen tijd zichtbaar bovenin
+- Bij elke refresh worden nieuws en koersdata opnieuw opgehaald
 
-Open een terminal in deze map:
+## Starten lokaal
 
 ```bash
 py -m pip install -r requirements.txt
-```
-
-## Starten
-
-```bash
 py -m streamlit run app.py
 ```
 
-Open daarna:
-
-```text
-http://localhost:8501
-```
+## Belangrijk
 
 Dit is geen financieel advies. Gebruik het als scanner, niet als automatische koopmachine.
