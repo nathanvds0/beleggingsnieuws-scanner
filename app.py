@@ -29,8 +29,7 @@ if auto_refresh:
 
 st.caption(f"Laatst geladen: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
 
-DEFAULT_WATCHLIST = pd.DataFrame([
-  DEFAULT_WATCHLIST = pd.DataFrame([
+DEFAULT_WATCHLIST = pd.DataFrame([DEFAULT_WATCHLIST = pd.DataFrame([
     {"ticker":"IBM","naam":"IBM","sector":"AI / Cloud / Enterprise software","keywords":"earnings,guidance,AI,watsonx,cloud,mainframe,consulting,dividend,upgrade,partnership","sector_score":1},
     {"ticker":"INTC","naam":"Intel","sector":"Semiconductors / Foundry","keywords":"earnings,guidance,foundry,AI chip,datacenter,manufacturing,CHIPS Act,upgrade,partnership","sector_score":1},
     {"ticker":"ELI.BR","naam":"Elia Group","sector":"Utilities / Electricity grid","keywords":"earnings,guidance,grid investment,electricity transmission,renewables,energy transition,capex,dividend,regulation","sector_score":1},
@@ -46,6 +45,8 @@ DEFAULT_WATCHLIST = pd.DataFrame([
     {"ticker":"TSM","naam":"Taiwan Semiconductor","sector":"Semiconductor foundry","keywords":"earnings,guidance,AI chips,foundry,advanced nodes,Apple,NVIDIA,capex,upgrade","sector_score":2},
     {"ticker":"NVDA","naam":"NVIDIA","sector":"AI / Semiconductors","keywords":"earnings,guidance,AI chip,GPU,datacenter,Blackwell,CUDA,upgrade,demand","sector_score":2},
     {"ticker":"PLTR","naam":"Palantir","sector":"AI software / Data analytics","keywords":"earnings,guidance,AI,AIP,government contracts,commercial growth,defense,upgrade","sector_score":2},
+])
+
 ])
 
 CATALYST_WORDS = [
