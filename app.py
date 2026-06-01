@@ -46,9 +46,6 @@ DEFAULT_WATCHLIST = pd.DataFrame([
     {"ticker":"NVDA","naam":"NVIDIA","sector":"AI / Semiconductors","keywords":"earnings,guidance,AI chip,GPU,datacenter,Blackwell,CUDA,upgrade,demand","sector_score":2},
     {"ticker":"PLTR","naam":"Palantir","sector":"AI software / Data analytics","keywords":"earnings,guidance,AI,AIP,government contracts,commercial growth,defense,upgrade","sector_score":2},
 ])
-
-])
-
 CATALYST_WORDS = [
     "earnings","guidance","upgrade","partnership","contract","approval","acquisition","merger",
     "record revenue","beat expectations","raises outlook","ETF inflows","rate cut","FDA approval",
