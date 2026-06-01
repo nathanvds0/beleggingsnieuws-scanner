@@ -5,48 +5,78 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="BelegRadar v4.6", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v4.7", page_icon="📈", layout="wide")
 
 THEMES = {
     "🌈 Neon donker": {
         "hero": "linear-gradient(135deg, #111827, #7c3aed, #db2777)",
         "accent": "#ec4899",
+        "accent2": "#8b5cf6",
+        "app_bg": "#070b14",
+        "sidebar_bg": "#111827",
+        "panel_bg": "#0f172a",
         "card_bg": "#111827",
         "card_border": "#7c3aed",
         "text": "#f9fafb",
-        "muted": "#d1d5db"
+        "muted": "#d1d5db",
+        "table_header": "#1f2937",
+        "input_bg": "#0b1220"
     },
     "🔵 Blauw professioneel": {
         "hero": "linear-gradient(135deg, #0f172a, #1d4ed8)",
         "accent": "#2563eb",
-        "card_bg": "#0f172a",
-        "card_border": "#2563eb",
-        "text": "#f9fafb",
-        "muted": "#dbeafe"
+        "accent2": "#38bdf8",
+        "app_bg": "#eff6ff",
+        "sidebar_bg": "#dbeafe",
+        "panel_bg": "#ffffff",
+        "card_bg": "#ffffff",
+        "card_border": "#93c5fd",
+        "text": "#0f172a",
+        "muted": "#334155",
+        "table_header": "#dbeafe",
+        "input_bg": "#ffffff"
     },
     "🟢 Groen finance": {
         "hero": "linear-gradient(135deg, #052e16, #16a34a)",
         "accent": "#22c55e",
-        "card_bg": "#052e16",
-        "card_border": "#22c55e",
-        "text": "#f9fafb",
-        "muted": "#dcfce7"
+        "accent2": "#84cc16",
+        "app_bg": "#ecfdf5",
+        "sidebar_bg": "#dcfce7",
+        "panel_bg": "#ffffff",
+        "card_bg": "#ffffff",
+        "card_border": "#86efac",
+        "text": "#052e16",
+        "muted": "#166534",
+        "table_header": "#dcfce7",
+        "input_bg": "#ffffff"
     },
     "🟣 Paars premium": {
         "hero": "linear-gradient(135deg, #1e1b4b, #7e22ce)",
         "accent": "#a855f7",
-        "card_bg": "#1e1b4b",
-        "card_border": "#a855f7",
-        "text": "#f9fafb",
-        "muted": "#ede9fe"
+        "accent2": "#ec4899",
+        "app_bg": "#faf5ff",
+        "sidebar_bg": "#f3e8ff",
+        "panel_bg": "#ffffff",
+        "card_bg": "#ffffff",
+        "card_border": "#d8b4fe",
+        "text": "#1e1b4b",
+        "muted": "#581c87",
+        "table_header": "#f3e8ff",
+        "input_bg": "#ffffff"
     },
     "🔥 Oranje energie": {
         "hero": "linear-gradient(135deg, #431407, #ea580c)",
         "accent": "#f97316",
-        "card_bg": "#431407",
-        "card_border": "#f97316",
-        "text": "#f9fafb",
-        "muted": "#ffedd5"
+        "accent2": "#facc15",
+        "app_bg": "#fff7ed",
+        "sidebar_bg": "#ffedd5",
+        "panel_bg": "#ffffff",
+        "card_bg": "#ffffff",
+        "card_border": "#fdba74",
+        "text": "#431407",
+        "muted": "#9a3412",
+        "table_header": "#ffedd5",
+        "input_bg": "#ffffff"
     },
 }
 
@@ -55,8 +85,37 @@ theme = THEMES[selected_theme]
 
 st.markdown(f"""
 <style>
-.block-container {{ padding-top: 1.4rem; max-width: 1250px; }}
+/* Hele app achtergrond */
+.stApp {{
+    background: {theme["app_bg"]} !important;
+    color: {theme["text"]} !important;
+}}
 
+/* Hoofdcontainer */
+.block-container {{
+    padding-top: 1.4rem;
+    max-width: 1250px;
+    color: {theme["text"]} !important;
+}}
+
+/* Sidebar volledig meekleuren */
+section[data-testid="stSidebar"] {{
+    background: {theme["sidebar_bg"]} !important;
+    border-right: 1px solid {theme["card_border"]};
+}}
+section[data-testid="stSidebar"] * {{
+    color: {theme["text"]} !important;
+}}
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] textarea,
+section[data-testid="stSidebar"] select,
+section[data-testid="stSidebar"] div[data-baseweb="select"] > div {{
+    background: {theme["input_bg"]} !important;
+    color: {theme["text"]} !important;
+    border-color: {theme["card_border"]} !important;
+}}
+
+/* Header */
 .hero {{
     background: {theme["hero"]};
     color: white;
@@ -65,9 +124,79 @@ st.markdown(f"""
     margin-bottom: 22px;
     box-shadow: 0 12px 35px rgba(0,0,0,0.25);
 }}
-.hero h1 {{ font-size: 44px; margin-bottom: 4px; color: white; }}
-.hero p {{ font-size: 16px; color: {theme["muted"]}; margin-bottom: 4px; }}
+.hero h1 {{ font-size: 44px; margin-bottom: 4px; color: white !important; }}
+.hero p {{ font-size: 16px; color: #f8fafc !important; margin-bottom: 4px; }}
 
+/* Algemene tekst */
+h1, h2, h3, h4, h5, h6, p, label, span {{
+    color: {theme["text"]};
+}}
+
+/* Metrics */
+div[data-testid="stMetric"] {{
+    background: {theme["panel_bg"]};
+    border: 1px solid {theme["card_border"]};
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+}}
+div[data-testid="stMetric"] label,
+div[data-testid="stMetricValue"] {{
+    color: {theme["text"]} !important;
+}}
+
+/* Tabs */
+button[data-baseweb="tab"] {{
+    background: transparent !important;
+    color: {theme["muted"]} !important;
+    border-radius: 12px 12px 0 0;
+}}
+button[data-baseweb="tab"][aria-selected="true"] {{
+    color: {theme["accent"]} !important;
+    border-bottom: 3px solid {theme["accent"]} !important;
+    font-weight: 800;
+}}
+
+/* Buttons */
+.stButton > button,
+.stDownloadButton > button {{
+    background: linear-gradient(135deg, {theme["accent"]}, {theme["accent2"]}) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    font-weight: 800 !important;
+}}
+.stButton > button:hover,
+.stDownloadButton > button:hover {{
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}}
+
+/* Expander */
+details {{
+    background: {theme["panel_bg"]} !important;
+    border: 1px solid {theme["card_border"]} !important;
+    border-radius: 14px !important;
+    color: {theme["text"]} !important;
+}}
+
+/* Inputs hoofdgedeelte */
+input, textarea, select {{
+    background: {theme["input_bg"]} !important;
+    color: {theme["text"]} !important;
+}}
+
+/* Dataframe / tabel */
+div[data-testid="stDataFrame"] {{
+    border: 1px solid {theme["card_border"]};
+    border-radius: 14px;
+    overflow: hidden;
+}}
+div[data-testid="stDataFrame"] * {{
+    color: {theme["text"]};
+}}
+
+/* Kaarten */
 .candidate-card {{
     background: {theme["card_bg"]};
     color: {theme["text"]};
@@ -75,11 +204,19 @@ st.markdown(f"""
     border-radius: 18px;
     border: 1px solid {theme["card_border"]};
     margin-bottom: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.20);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.14);
 }}
-.candidate-card h3 {{ color: #ffffff; font-size: 20px; margin: 0 0 8px 0; }}
-.candidate-card p {{ color: {theme["muted"]}; margin: 6px 0; font-size: 14px; }}
-.candidate-card strong {{ color: #ffffff; }}
+.candidate-card h3 {{
+    color: {theme["text"]} !important;
+    font-size: 20px;
+    margin: 0 0 8px 0;
+}}
+.candidate-card p {{
+    color: {theme["muted"]} !important;
+    margin: 6px 0;
+    font-size: 14px;
+}}
+.candidate-card strong {{ color: {theme["text"]} !important; }}
 
 .compact-card {{
     background: {theme["card_bg"]};
@@ -88,8 +225,10 @@ st.markdown(f"""
     border-radius: 16px;
     border: 1px solid {theme["card_border"]};
     margin-bottom: 10px;
+    box-shadow: 0 5px 16px rgba(0,0,0,0.10);
 }}
-.compact-card p {{ color: {theme["muted"]}; margin: 4px 0; }}
+.compact-card p {{ color: {theme["muted"]} !important; margin: 4px 0; }}
+.compact-card strong {{ color: {theme["text"]} !important; }}
 
 .info-card {{
     background: {theme["card_bg"]};
@@ -99,9 +238,10 @@ st.markdown(f"""
     border: 1px solid {theme["card_border"]};
     margin-bottom: 14px;
 }}
-.info-card p, .info-card li {{ color: {theme["muted"]}; }}
-.info-card h3 {{ color: #ffffff; }}
+.info-card p, .info-card li {{ color: {theme["muted"]} !important; }}
+.info-card h3 {{ color: {theme["text"]} !important; }}
 
+/* Badges blijven contrasterend */
 .badge {{
     padding: 5px 10px;
     border-radius: 999px;
@@ -117,7 +257,12 @@ st.markdown(f"""
 .badge-blue {{ background-color: #dbeafe; color: #1e40af; }}
 .badge-gray {{ background-color: #e5e7eb; color: #374151; }}
 
-.small-muted {{ color: #9ca3af; font-size: 13px; }}
+.small-muted {{ color: {theme["muted"]} !important; font-size: 13px; }}
+
+/* Meldingen iets mooier */
+div[data-testid="stAlert"] {{
+    border-radius: 14px;
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -561,7 +706,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_6.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_7.csv", "text/csv")
 
 with tab2:
     st.subheader("Top 3 volgens BelegRadar")
