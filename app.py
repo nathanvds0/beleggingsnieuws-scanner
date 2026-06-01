@@ -5,7 +5,7 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="BelegRadar v4.5", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v4.6", page_icon="📈", layout="wide")
 
 THEMES = {
     "🌈 Neon donker": {
@@ -186,6 +186,43 @@ def action_badge(action):
         "OPPASSEN": "badge-orange",
     }
     return f'<span class="badge {classes.get(action, "badge-gray")}">{action}</span>'
+
+SUGGESTION_DB = {
+    "IBM": {"ticker":"IBM","naam":"IBM","sector":"AI / Cloud / Enterprise software","keywords":"earnings,guidance,AI,watsonx,cloud,mainframe,consulting,dividend,upgrade,partnership","sector_score":1},
+    "INTEL": {"ticker":"INTC","naam":"Intel","sector":"Semiconductors / Foundry","keywords":"earnings,guidance,foundry,AI chip,datacenter,manufacturing,CHIPS Act,upgrade,partnership","sector_score":1},
+    "INTC": {"ticker":"INTC","naam":"Intel","sector":"Semiconductors / Foundry","keywords":"earnings,guidance,foundry,AI chip,datacenter,manufacturing,CHIPS Act,upgrade,partnership","sector_score":1},
+    "ELIA": {"ticker":"ELI.BR","naam":"Elia Group","sector":"Utilities / Electricity grid","keywords":"earnings,guidance,grid investment,electricity transmission,renewables,energy transition,capex,dividend,regulation","sector_score":1},
+    "ELIA GROUP": {"ticker":"ELI.BR","naam":"Elia Group","sector":"Utilities / Electricity grid","keywords":"earnings,guidance,grid investment,electricity transmission,renewables,energy transition,capex,dividend,regulation","sector_score":1},
+    "AEDIFICA": {"ticker":"AED.BR","naam":"Aedifica","sector":"Healthcare real estate / REIT","keywords":"earnings,guidance,healthcare real estate,elderly care,occupancy,dividend,interest rates,portfolio,valuation","sector_score":1},
+    "LVMH": {"ticker":"MC.PA","naam":"LVMH","sector":"Luxury goods","keywords":"earnings,guidance,luxury,China demand,pricing power,margin,brands,Fashion,upgrade","sector_score":1},
+    "ASML": {"ticker":"ASML.AS","naam":"ASML","sector":"Semiconductor equipment","keywords":"earnings,guidance,EUV,High-NA,orders,chip demand,AI chips,China,upgrade","sector_score":2},
+    "MICROSOFT": {"ticker":"MSFT","naam":"Microsoft","sector":"AI / Cloud","keywords":"earnings,guidance,Azure,AI,Copilot,cloud,OpenAI,datacenter,upgrade","sector_score":2},
+    "MSFT": {"ticker":"MSFT","naam":"Microsoft","sector":"AI / Cloud","keywords":"earnings,guidance,Azure,AI,Copilot,cloud,OpenAI,datacenter,upgrade","sector_score":2},
+    "ALPHABET": {"ticker":"GOOGL","naam":"Alphabet","sector":"AI / Advertising / Cloud","keywords":"earnings,guidance,AI,Gemini,cloud,advertising,YouTube,upgrade","sector_score":2},
+    "GOOGLE": {"ticker":"GOOGL","naam":"Alphabet","sector":"AI / Advertising / Cloud","keywords":"earnings,guidance,AI,Gemini,cloud,advertising,YouTube,upgrade","sector_score":2},
+    "AMAZON": {"ticker":"AMZN","naam":"Amazon","sector":"E-commerce / Cloud / AI","keywords":"earnings,guidance,AWS,AI,retail,margin,cloud,advertising,upgrade","sector_score":2},
+    "AMD": {"ticker":"AMD","naam":"AMD","sector":"Semiconductors / AI chips","keywords":"earnings,guidance,AI chip,GPU,datacenter,MI300,MI400,server,upgrade","sector_score":2},
+    "BROADCOM": {"ticker":"AVGO","naam":"Broadcom","sector":"Semiconductors / AI infrastructure","keywords":"earnings,guidance,AI chip,custom silicon,datacenter,VMware,networking,upgrade,partnership","sector_score":2},
+    "TSMC": {"ticker":"TSM","naam":"Taiwan Semiconductor","sector":"Semiconductor foundry","keywords":"earnings,guidance,AI chips,foundry,advanced nodes,Apple,NVIDIA,capex,upgrade","sector_score":2},
+    "NVIDIA": {"ticker":"NVDA","naam":"NVIDIA","sector":"AI / Semiconductors","keywords":"earnings,guidance,AI chip,GPU,datacenter,Blackwell,CUDA,upgrade,demand","sector_score":2},
+    "PALANTIR": {"ticker":"PLTR","naam":"Palantir","sector":"AI software / Data analytics","keywords":"earnings,guidance,AI,AIP,government contracts,commercial growth,defense,upgrade","sector_score":2},
+    "TESLA": {"ticker":"TSLA","naam":"Tesla","sector":"EV / AI / Robotics","keywords":"earnings,guidance,deliveries,FSD,robotaxi,energy,upgrade,AI,autonomous driving","sector_score":2},
+    "APPLE": {"ticker":"AAPL","naam":"Apple","sector":"Consumer tech / AI","keywords":"earnings,guidance,iPhone,services,AI,upgrade,buyback,China","sector_score":1},
+    "META": {"ticker":"META","naam":"Meta Platforms","sector":"AI / Social media / Advertising","keywords":"earnings,guidance,AI,ads,Instagram,WhatsApp,metaverse,upgrade","sector_score":2},
+    "BEL 20": {"ticker":"^BFX","naam":"BEL 20","sector":"Belgische index","keywords":"Belgium stocks,BEL 20,index,Europe stocks,Brussels","sector_score":1},
+    "BEL20": {"ticker":"^BFX","naam":"BEL 20","sector":"Belgische index","keywords":"Belgium stocks,BEL 20,index,Europe stocks,Brussels","sector_score":1},
+}
+
+def find_suggestion(query):
+    q = str(query).strip().upper()
+    if not q:
+        return None
+    if q in SUGGESTION_DB:
+        return SUGGESTION_DB[q]
+    for key, val in SUGGESTION_DB.items():
+        if q in key or q in val["naam"].upper() or q == val["ticker"].upper():
+            return val
+    return None
 
 def normalize_watchlist(df):
     required = ["ticker", "naam", "sector", "keywords", "sector_score"]
@@ -524,7 +561,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_5.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_6.csv", "text/csv")
 
 with tab2:
     st.subheader("Top 3 volgens BelegRadar")
