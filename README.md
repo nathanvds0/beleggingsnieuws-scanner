@@ -1,9 +1,15 @@
-# BelegRadar v4.7
+# BelegRadar v5
 
-Nieuw:
-- Kleurthema verandert nu de hele website
-- Achtergrond, sidebar, knoppen, tabs, kaarten en tabellen kleuren mee
-- Zoek-suggesties blijven behouden
-- Kosten per belegging blijven behouden
+Nieuwe grote versie:
+- Veiligere taal: STERK RESEARCH-SIGNAAL i.p.v. KOOP-KANDIDAAT
+- Korte termijn en lange termijn score
+- Score-uitleg per belegging
+- Filters
+- Mobiele kaartweergave
+- Brokerkosten-presets
+- Portfolio-simulatie
+- Alerts op de pagina
+- Betere zoek-suggesties
+- Full color thema's
 
-Geen financieel advies. Prijzen en kosten zijn schattingen.
+Geen financieel advies. Prijzen, kosten en scores zijn schattingen.
