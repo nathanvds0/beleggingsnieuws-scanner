@@ -5,71 +5,119 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="BelegRadar v4.4", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v4.5", page_icon="📈", layout="wide")
 
-st.markdown("""
+THEMES = {
+    "🌈 Neon donker": {
+        "hero": "linear-gradient(135deg, #111827, #7c3aed, #db2777)",
+        "accent": "#ec4899",
+        "card_bg": "#111827",
+        "card_border": "#7c3aed",
+        "text": "#f9fafb",
+        "muted": "#d1d5db"
+    },
+    "🔵 Blauw professioneel": {
+        "hero": "linear-gradient(135deg, #0f172a, #1d4ed8)",
+        "accent": "#2563eb",
+        "card_bg": "#0f172a",
+        "card_border": "#2563eb",
+        "text": "#f9fafb",
+        "muted": "#dbeafe"
+    },
+    "🟢 Groen finance": {
+        "hero": "linear-gradient(135deg, #052e16, #16a34a)",
+        "accent": "#22c55e",
+        "card_bg": "#052e16",
+        "card_border": "#22c55e",
+        "text": "#f9fafb",
+        "muted": "#dcfce7"
+    },
+    "🟣 Paars premium": {
+        "hero": "linear-gradient(135deg, #1e1b4b, #7e22ce)",
+        "accent": "#a855f7",
+        "card_bg": "#1e1b4b",
+        "card_border": "#a855f7",
+        "text": "#f9fafb",
+        "muted": "#ede9fe"
+    },
+    "🔥 Oranje energie": {
+        "hero": "linear-gradient(135deg, #431407, #ea580c)",
+        "accent": "#f97316",
+        "card_bg": "#431407",
+        "card_border": "#f97316",
+        "text": "#f9fafb",
+        "muted": "#ffedd5"
+    },
+}
+
+selected_theme = st.sidebar.selectbox("🎨 Kleurthema", list(THEMES.keys()), index=0)
+theme = THEMES[selected_theme]
+
+st.markdown(f"""
 <style>
-.block-container { padding-top: 1.4rem; max-width: 1250px; }
+.block-container {{ padding-top: 1.4rem; max-width: 1250px; }}
 
-.hero {
-    background: linear-gradient(135deg, #111827, #273449);
+.hero {{
+    background: {theme["hero"]};
     color: white;
-    padding: 26px 30px;
-    border-radius: 20px;
-    margin-bottom: 20px;
-}
-.hero h1 { font-size: 42px; margin-bottom: 4px; color: white; }
-.hero p { font-size: 16px; color: #d1d5db; margin-bottom: 4px; }
+    padding: 28px 32px;
+    border-radius: 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 12px 35px rgba(0,0,0,0.25);
+}}
+.hero h1 {{ font-size: 44px; margin-bottom: 4px; color: white; }}
+.hero p {{ font-size: 16px; color: {theme["muted"]}; margin-bottom: 4px; }}
 
-.candidate-card {
-    background: #111827;
-    color: #f9fafb;
+.candidate-card {{
+    background: {theme["card_bg"]};
+    color: {theme["text"]};
     padding: 16px 18px;
-    border-radius: 16px;
-    border: 1px solid #374151;
+    border-radius: 18px;
+    border: 1px solid {theme["card_border"]};
     margin-bottom: 12px;
-}
-.candidate-card h3 { color: #ffffff; font-size: 20px; margin: 0 0 8px 0; }
-.candidate-card p { color: #d1d5db; margin: 6px 0; font-size: 14px; }
-.candidate-card strong { color: #ffffff; }
+    box-shadow: 0 8px 24px rgba(0,0,0,0.20);
+}}
+.candidate-card h3 {{ color: #ffffff; font-size: 20px; margin: 0 0 8px 0; }}
+.candidate-card p {{ color: {theme["muted"]}; margin: 6px 0; font-size: 14px; }}
+.candidate-card strong {{ color: #ffffff; }}
 
-.compact-card {
-    background: #111827;
-    color: #f9fafb;
+.compact-card {{
+    background: {theme["card_bg"]};
+    color: {theme["text"]};
     padding: 14px 16px;
-    border-radius: 14px;
-    border: 1px solid #374151;
+    border-radius: 16px;
+    border: 1px solid {theme["card_border"]};
     margin-bottom: 10px;
-}
-.compact-card p { color: #d1d5db; margin: 4px 0; }
+}}
+.compact-card p {{ color: {theme["muted"]}; margin: 4px 0; }}
 
-.info-card {
-    background: #0f172a;
-    color: #f8fafc;
+.info-card {{
+    background: {theme["card_bg"]};
+    color: {theme["text"]};
     padding: 18px;
     border-radius: 16px;
-    border: 1px solid #334155;
+    border: 1px solid {theme["card_border"]};
     margin-bottom: 14px;
-}
-.info-card p, .info-card li { color: #d1d5db; }
-.info-card h3 { color: #ffffff; }
+}}
+.info-card p, .info-card li {{ color: {theme["muted"]}; }}
+.info-card h3 {{ color: #ffffff; }}
 
-.badge {
+.badge {{
     padding: 5px 10px;
     border-radius: 999px;
     font-weight: 800;
     display: inline-block;
     font-size: 12px;
     margin: 4px 0 6px 0;
-}
-.badge-green { background-color: #dcfce7; color: #166534; }
-.badge-yellow { background-color: #fef9c3; color: #854d0e; }
-.badge-orange { background-color: #ffedd5; color: #9a3412; }
-.badge-red { background-color: #fee2e2; color: #991b1b; }
-.badge-blue { background-color: #dbeafe; color: #1e40af; }
-.badge-gray { background-color: #e5e7eb; color: #374151; }
+}}
+.badge-green {{ background-color: #dcfce7; color: #166534; }}
+.badge-yellow {{ background-color: #fef9c3; color: #854d0e; }}
+.badge-orange {{ background-color: #ffedd5; color: #9a3412; }}
+.badge-red {{ background-color: #fee2e2; color: #991b1b; }}
+.badge-blue {{ background-color: #dbeafe; color: #1e40af; }}
+.badge-gray {{ background-color: #e5e7eb; color: #374151; }}
 
-.small-muted { color: #9ca3af; font-size: 13px; }
+.small-muted {{ color: #9ca3af; font-size: 13px; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -309,28 +357,31 @@ def position_suggestion(action):
 init_watchlist_state()
 
 st.sidebar.header("Belegging toevoegen")
-st.sidebar.caption("Geen CSV nodig. Vul gewoon een ticker in, bijvoorbeeld IBM, INTC, ASML.AS, MC.PA of BTC-USD.")
+st.sidebar.caption("Typ alleen een naam of ticker. De app vult ticker, sector, keywords en score automatisch in als hij de belegging kent.")
 
-with st.sidebar.expander("➕ Voeg één belegging toe", expanded=False):
-    new_ticker = st.text_input("Ticker", placeholder="Bijv. IBM, ASML.AS, MC.PA")
-    new_name = st.text_input("Naam", placeholder="Bijv. IBM of ASML")
-    new_sector = st.text_input("Sector", placeholder="Bijv. AI / Cloud")
-    new_keywords = st.text_input(
-        "Keywords",
-        value="earnings,guidance,upgrade,partnership,AI,growth",
-        help="Woorden waarop de scanner nieuws controleert. Scheid met komma's."
-    )
-    new_sector_score = st.selectbox(
-        "Sector-score",
-        [0, 1, 2],
-        index=1,
-        help="0 = zwak/onduidelijk, 1 = normaal, 2 = sterke/hype sector"
-    )
+with st.sidebar.expander("🔎 Zoek & voeg toe", expanded=True):
+    search_query = st.text_input("Zoek belegging", placeholder="Bijv. Microsoft, IBM, LVMH, BEL20, Tesla")
+    suggestion = find_suggestion(search_query)
+
+    if suggestion:
+        st.success(f"Suggestie gevonden: {suggestion['naam']} ({suggestion['ticker']})")
+        suggested_ticker = st.text_input("Ticker", value=suggestion["ticker"])
+        suggested_name = st.text_input("Naam", value=suggestion["naam"])
+        suggested_sector = st.text_input("Sector", value=suggestion["sector"])
+        suggested_keywords = st.text_input("Keywords", value=suggestion["keywords"])
+        suggested_sector_score = st.selectbox("Sector-score", [0, 1, 2], index=int(suggestion["sector_score"]))
+    else:
+        st.info("Geen automatische suggestie gevonden. Je kunt hem nog steeds handmatig toevoegen.")
+        suggested_ticker = st.text_input("Ticker", value=search_query.upper() if search_query else "")
+        suggested_name = st.text_input("Naam", value=search_query if search_query else "")
+        suggested_sector = st.text_input("Sector", value="Zelf toegevoegd")
+        suggested_keywords = st.text_input("Keywords", value="earnings,guidance,upgrade,partnership,AI,growth")
+        suggested_sector_score = st.selectbox("Sector-score", [0, 1, 2], index=1)
 
     if st.button("Toevoegen aan watchlist"):
-        if new_ticker.strip():
-            add_asset_to_watchlist(new_ticker, new_name, new_sector, new_keywords, new_sector_score)
-            st.success(f"{new_ticker.strip().upper()} toegevoegd.")
+        if suggested_ticker.strip():
+            add_asset_to_watchlist(suggested_ticker, suggested_name, suggested_sector, suggested_keywords, suggested_sector_score)
+            st.success(f"{suggested_name} ({suggested_ticker}) toegevoegd.")
         else:
             st.error("Vul eerst een ticker in.")
 
@@ -473,7 +524,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_4.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_5.csv", "text/csv")
 
 with tab2:
     st.subheader("Top 3 volgens BelegRadar")
@@ -577,7 +628,7 @@ with tab5:
     st.markdown("""
     Je hebt nu twee opties:
 
-    **Optie 1 — makkelijk:** gebruik links in de sidebar **Belegging toevoegen**. Vul alleen een ticker in en klik op toevoegen.
+    **Optie 1 — makkelijk:** gebruik links in de sidebar **Belegging toevoegen**. Typ alleen een naam zoals Microsoft, IBM of LVMH. De app vult de rest automatisch in als hij de belegging kent.
 
     **Optie 2 — veel tegelijk:** upload een CSV-bestand met meerdere aandelen.
 
@@ -612,7 +663,7 @@ with tab5:
     1. Open de website op je gsm.
     2. Open links de sidebar.
     3. Ga naar **Belegging toevoegen**.
-    4. Vul alleen de ticker in, bijvoorbeeld `IBM` of `ASML.AS`.
+    4. Vul alleen de naam of ticker in, bijvoorbeeld `Microsoft`, `IBM`, `LVMH`, `BEL20` of `ASML`.
     5. Klik op **Toevoegen aan watchlist**.
 
     ### Veel beleggingen tegelijk uploaden met je gsm
