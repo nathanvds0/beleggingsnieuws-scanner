@@ -13,7 +13,7 @@ st.markdown("""
 
 .hero {
     background: linear-gradient(135deg, #111827, #273449);
-    color: white;
+    color: yellow;
     padding: 26px 30px;
     border-radius: 20px;
     margin-bottom: 20px;
