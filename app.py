@@ -6,7 +6,7 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="BelegRadar v5.2", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v5.3", page_icon="📈", layout="wide")
 
 THEMES = {
     "🌈 Neon donker": {
@@ -184,6 +184,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+if "force_refresh_token" not in st.session_state:
+    st.session_state.force_refresh_token = 0
+
 DEFAULT_WATCHLIST = pd.DataFrame([
     {"ticker":"IBM","naam":"IBM","sector":"AI / Cloud / Enterprise software","keywords":"earnings,guidance,AI,watsonx,cloud,mainframe,consulting,dividend,upgrade,partnership","sector_score":1},
     {"ticker":"INTC","naam":"Intel","sector":"Semiconductors / Foundry","keywords":"earnings,guidance,foundry,AI chip,datacenter,manufacturing,CHIPS Act,upgrade,partnership","sector_score":1},
@@ -315,12 +318,14 @@ def action_badge(action):
     }
     return f'<span class="badge {classes.get(action, "badge-gray")}">{action}</span>'
 
-def google_news(query, max_items=8):
+@st.cache_data(ttl=900, show_spinner=False)
+def google_news_cached(query, max_items=8, refresh_token=0):
     url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en-US&gl=US&ceid=US:en"
     feed = feedparser.parse(url)
     return [{"title": e.get("title",""), "link": e.get("link",""), "published": e.get("published","")} for e in feed.entries[:max_items]]
 
-def get_price_data(ticker):
+@st.cache_data(ttl=900, show_spinner=False)
+def get_price_data_cached(ticker, refresh_token=0):
     try:
         data = yf.download(ticker, period="6mo", interval="1d", progress=False, auto_adjust=True)
         if data.empty:
@@ -328,6 +333,12 @@ def get_price_data(ticker):
         return data.dropna()
     except Exception:
         return None
+
+def google_news(query, max_items=8):
+    return google_news_cached(query, max_items, st.session_state.force_refresh_token)
+
+def get_price_data(ticker):
+    return get_price_data_cached(ticker, st.session_state.force_refresh_token)
 
 def safe_float(value):
     try:
@@ -530,9 +541,15 @@ def paper_sell(position_index, current_price):
 
 
 # Sidebar
-st.sidebar.header("Auto-refresh")
-auto_refresh = st.sidebar.toggle("Automatisch verversen", value=True)
+st.sidebar.header("Verversen")
+auto_refresh = st.sidebar.toggle("Automatisch verversen", value=False)
 refresh_minutes = st.sidebar.selectbox("Ververs elke", [5, 10, 15, 30, 60], index=2)
+if st.sidebar.button("🔄 Nu data verversen"):
+    st.session_state.force_refresh_token += 1
+    google_news_cached.clear()
+    get_price_data_cached.clear()
+    st.success("Data wordt opnieuw opgehaald.")
+
 if auto_refresh:
     refresh_ms = refresh_minutes * 60 * 1000
     st.markdown(f"<script>setTimeout(function() {{ window.location.reload(); }}, {refresh_ms});</script>", unsafe_allow_html=True)
@@ -598,6 +615,7 @@ st.sidebar.download_button("Download standaard-watchlist", DEFAULT_WATCHLIST.to_
 
 st.caption(f"Laatst geladen: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
 st.warning("Deze tool geeft geen persoonlijk financieel advies. Scores zijn automatisch gegenereerd op basis van openbare data, nieuwswoorden, koersdata, volume en kosteninstellingen.")
+st.caption("Snelheidsmodus: koersdata en nieuws worden tijdelijk gecachet. Gebruik links 'Nu data verversen' als je alles opnieuw wilt ophalen.")
 
 required_cols = {"ticker", "naam", "sector", "keywords", "sector_score"}
 missing = required_cols - set(watchlist.columns)
@@ -606,7 +624,7 @@ if missing:
     st.stop()
 
 results = []
-with st.spinner("Laatste nieuws en koersdata ophalen..."):
+with st.spinner("Data laden... eerste keer kan wat langer duren, daarna gebruikt de app cache."):
     for _, row in watchlist.iterrows():
         ticker = str(row["ticker"]).strip()
         name = str(row["naam"]).strip()
@@ -687,7 +705,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", filtered.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v5_2.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", filtered.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v5_3.csv", "text/csv")
 
 with tab2:
     st.subheader("Mobiele kaartweergave")

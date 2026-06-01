@@ -1,11 +1,12 @@
-# BelegRadar v5.2
+# BelegRadar v5.3
 
-Nieuw:
-- 🎮 Oefenportfolio / paper trading met nepgeld
-- Virtueel kopen en verkopen
-- Portfolio waarde beweegt mee met actuele koersdata
-- Cash, posities, totale waarde en winst/verlies
-- Download oefenportfolio als CSV
-- Kleurthema's verbeterd voor betere leesbaarheid
+Fix/verbetering:
+- App voelt sneller aan bij klikken
+- Koersdata en nieuws worden 15 minuten gecachet
+- Auto-refresh staat standaard uit
+- Handmatige knop: Nu data verversen
+- Minder storende reloads tijdens gebruik
+
+Let op: Streamlit draait technisch nog steeds opnieuw bij interacties, maar door caching hoeft hij niet telkens alle data opnieuw op te halen.
 
 Geen financieel advies. Prijzen, kosten en scores zijn schattingen.
