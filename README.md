@@ -1,12 +1,10 @@
-# BelegRadar v4.3
+# BelegRadar v4.4
 
 Nieuw:
-- Per belegging huidige prijs per stuk
-- Netto aankoopprijs per stuk
-- Totale geschatte kosten
-- Break-even prijs
-- Nodige stijging om uit de kosten te komen
-- Kosten instelbaar in de sidebar
-- CSV upload-hulp blijft behouden
+- Beleggingen toevoegen zonder CSV via de sidebar
+- Beleggingen verwijderen uit de actieve watchlist
+- Reset naar standaardlijst
+- Huidige watchlist downloaden
+- CSV upload blijft mogelijk
 
 Geen financieel advies. Prijzen en kosten zijn schattingen.

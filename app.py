@@ -5,7 +5,7 @@ import feedparser
 from urllib.parse import quote_plus
 from datetime import datetime
 
-st.set_page_config(page_title="BelegRadar v4.3", page_icon="📈", layout="wide")
+st.set_page_config(page_title="BelegRadar v4.4", page_icon="📈", layout="wide")
 
 st.markdown("""
 <style>
@@ -139,11 +139,50 @@ def action_badge(action):
     }
     return f'<span class="badge {classes.get(action, "badge-gray")}">{action}</span>'
 
+def normalize_watchlist(df):
+    required = ["ticker", "naam", "sector", "keywords", "sector_score"]
+    for col in required:
+        if col not in df.columns:
+            df[col] = ""
+    df = df[required].copy()
+    df["ticker"] = df["ticker"].astype(str).str.strip()
+    df["naam"] = df["naam"].astype(str).str.strip()
+    df["sector"] = df["sector"].astype(str).str.strip()
+    df["keywords"] = df["keywords"].astype(str).str.strip()
+    df["sector_score"] = pd.to_numeric(df["sector_score"], errors="coerce").fillna(1).astype(int)
+    df["sector_score"] = df["sector_score"].clip(0, 2)
+    df = df[df["ticker"] != ""]
+    df = df.drop_duplicates(subset=["ticker"], keep="last")
+    return df.reset_index(drop=True)
+
+def init_watchlist_state():
+    if "watchlist_df" not in st.session_state:
+        st.session_state.watchlist_df = DEFAULT_WATCHLIST.copy()
+
+def add_asset_to_watchlist(ticker, naam, sector, keywords, sector_score):
+    init_watchlist_state()
+    new_row = pd.DataFrame([{
+        "ticker": ticker.strip().upper(),
+        "naam": naam.strip() if naam.strip() else ticker.strip().upper(),
+        "sector": sector.strip() if sector.strip() else "Zelf toegevoegd",
+        "keywords": keywords.strip() if keywords.strip() else "earnings,guidance,upgrade,partnership,AI,growth",
+        "sector_score": int(sector_score),
+    }])
+    st.session_state.watchlist_df = normalize_watchlist(pd.concat([st.session_state.watchlist_df, new_row], ignore_index=True))
+
+def remove_asset_from_watchlist(ticker):
+    init_watchlist_state()
+    ticker = ticker.strip().upper()
+    st.session_state.watchlist_df = st.session_state.watchlist_df[
+        st.session_state.watchlist_df["ticker"].astype(str).str.upper() != ticker
+    ].reset_index(drop=True)
+
 def load_watchlist():
+    init_watchlist_state()
     uploaded = st.sidebar.file_uploader("Upload je eigen watchlist CSV", type=["csv"])
     if uploaded is not None:
-        return pd.read_csv(uploaded)
-    return DEFAULT_WATCHLIST.copy()
+        st.session_state.watchlist_df = normalize_watchlist(pd.read_csv(uploaded))
+    return normalize_watchlist(st.session_state.watchlist_df.copy())
 
 def google_news(query, max_items=8):
     url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en-US&gl=US&ceid=US:en"
@@ -267,6 +306,45 @@ def position_suggestion(action):
         return "Nu niet kopen; later opnieuw scannen."
     return "Geen positie nemen volgens deze scan."
 
+init_watchlist_state()
+
+st.sidebar.header("Belegging toevoegen")
+st.sidebar.caption("Geen CSV nodig. Vul gewoon een ticker in, bijvoorbeeld IBM, INTC, ASML.AS, MC.PA of BTC-USD.")
+
+with st.sidebar.expander("➕ Voeg één belegging toe", expanded=False):
+    new_ticker = st.text_input("Ticker", placeholder="Bijv. IBM, ASML.AS, MC.PA")
+    new_name = st.text_input("Naam", placeholder="Bijv. IBM of ASML")
+    new_sector = st.text_input("Sector", placeholder="Bijv. AI / Cloud")
+    new_keywords = st.text_input(
+        "Keywords",
+        value="earnings,guidance,upgrade,partnership,AI,growth",
+        help="Woorden waarop de scanner nieuws controleert. Scheid met komma's."
+    )
+    new_sector_score = st.selectbox(
+        "Sector-score",
+        [0, 1, 2],
+        index=1,
+        help="0 = zwak/onduidelijk, 1 = normaal, 2 = sterke/hype sector"
+    )
+
+    if st.button("Toevoegen aan watchlist"):
+        if new_ticker.strip():
+            add_asset_to_watchlist(new_ticker, new_name, new_sector, new_keywords, new_sector_score)
+            st.success(f"{new_ticker.strip().upper()} toegevoegd.")
+        else:
+            st.error("Vul eerst een ticker in.")
+
+with st.sidebar.expander("🧹 Belegging verwijderen", expanded=False):
+    current_tickers = st.session_state.watchlist_df["ticker"].astype(str).tolist()
+    ticker_to_remove = st.selectbox("Kies ticker", current_tickers) if current_tickers else None
+    if st.button("Verwijderen") and ticker_to_remove:
+        remove_asset_from_watchlist(ticker_to_remove)
+        st.success(f"{ticker_to_remove} verwijderd.")
+
+if st.sidebar.button("Reset naar standaardlijst"):
+    st.session_state.watchlist_df = DEFAULT_WATCHLIST.copy()
+    st.success("Watchlist gereset.")
+
 watchlist = load_watchlist()
 required_cols = {"ticker", "naam", "sector", "keywords", "sector_score"}
 missing = required_cols - set(watchlist.columns)
@@ -288,6 +366,7 @@ spread_pct = st.sidebar.number_input("Spread/slippage (%)", min_value=0.0, value
 belasting_winst_pct = st.sidebar.number_input("Belasting op winst (%)", min_value=0.0, value=0.0, step=0.5)
 
 st.sidebar.caption("Deze kosten zijn schattingen. Vul je eigen brokerkosten in.")
+st.sidebar.download_button("Download huidige watchlist", watchlist.to_csv(index=False), file_name="mijn_watchlist.csv", mime="text/csv")
 st.sidebar.download_button("Download standaard-watchlist", DEFAULT_WATCHLIST.to_csv(index=False), file_name="watchlist_template.csv", mime="text/csv")
 
 def bereken_kosten_per_asset(laatste_koers, orderbedrag, aankoopkost_vast, verkoopkost_vast, aankoopkost_pct, verkoopkost_pct, spread_pct):
@@ -394,7 +473,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_3.csv", "text/csv")
+    st.download_button("Download resultaten als CSV", df.drop(columns=["Nieuws"]).to_csv(index=False), "scanner_resultaten_v4_4.csv", "text/csv")
 
 with tab2:
     st.subheader("Top 3 volgens BelegRadar")
@@ -494,11 +573,15 @@ with tab4:
     st.warning("De prijsdata en kosten zijn schattingen. Check altijd je echte broker/bank-app voordat je koopt.")
 
 with tab5:
-    st.subheader("📱 Zelf een watchlist uploaden")
+    st.subheader("📱 Watchlist maken of uploaden")
     st.markdown("""
-    Je kunt zelf een CSV-bestand uploaden met aandelen die jij wilt scannen.
+    Je hebt nu twee opties:
 
-    Je bestand moet deze 5 kolommen hebben:
+    **Optie 1 — makkelijk:** gebruik links in de sidebar **Belegging toevoegen**. Vul alleen een ticker in en klik op toevoegen.
+
+    **Optie 2 — veel tegelijk:** upload een CSV-bestand met meerdere aandelen.
+
+    Een CSV-bestand moet deze 5 kolommen hebben:
 
     `ticker, naam, sector, keywords, sector_score`
     """)
@@ -525,7 +608,14 @@ with tab5:
     st.download_button("Download simpel CSV-voorbeeld", voorbeeld.to_csv(index=False), "simpel_watchlist_voorbeeld.csv", "text/csv")
 
     st.markdown("""
-    ### Uploaden met je gsm
+    ### Makkelijkste manier met je gsm
+    1. Open de website op je gsm.
+    2. Open links de sidebar.
+    3. Ga naar **Belegging toevoegen**.
+    4. Vul alleen de ticker in, bijvoorbeeld `IBM` of `ASML.AS`.
+    5. Klik op **Toevoegen aan watchlist**.
+
+    ### Veel beleggingen tegelijk uploaden met je gsm
     1. Download het voorbeeldbestand hierboven.
     2. Open het in Google Sheets, Excel of Numbers.
     3. Pas de regels aan of voeg nieuwe aandelen toe.
